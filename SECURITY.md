@@ -70,6 +70,12 @@ Veredicto y cambios, punto por punto:
 9. **Respaldo**: el escape era correcto con la configuración estándar de Postgres; ahora se fija (`SET standard_conforming_strings = on`). Incluye las passkeys; el liviano conserva el registro de los adjuntos (sin contenido). No incluye sesiones, límites, consumo de IA ni claves de la API (a propósito).
 10. **Píxeles de rastreo**: las imágenes externas de los correos entrantes no se cargan hasta tocar "Mostrar imágenes", y se piden sin `Referer`.
 
+## v1.10.0: portal con consulta por número e ingreso con Microsoft
+- Consulta por número: exige el correo del solicitante (o de alguien en copia) o una sesión del portal; respuesta idéntica para "no existe" y "no es tuyo"; topes por IP (60/h), por correo (20/h) e intentos fallidos por número (10/h) y por IP (20/h). Sin sesión devuelve solo estado y fechas: ni asunto, ni proyecto, ni mensajes, ni adjuntos.
+- Sesión del portal: OpenID Connect con la misma validación que el ingreso de agentes (PKCE, state y nonce atados al navegador, audiencia, vencimiento y **tenant de la empresa**). Cuentas invitadas (B2B) rechazadas (#EXT#, `idp` de otro tenant o `acct=1`). Cookie `__Host-` HttpOnly, Secure, SameSite=Lax, firmada, 12 horas, con la época de los enlaces del portal (se anula junto con ellos y al apagar la opción). No crea usuarios ni da acceso a rutas de agentes.
+- Los tickets se asocian por el id de Entra (oid); por correo solo con contactos no vinculados a otra cuenta (un correo reasignado no hereda los tickets del anterior).
+- Con sesión, cada acción sobre un ticket (ver, responder, adjuntos, resolver, opinar de la respuesta automática) vuelve a comprobar que el ticket sea de un contacto de esa persona. El ticket nuevo queda a nombre de la cuenta (no se puede abrir a nombre de otro).
+
 ## Al publicar
 1. Variables nuevas u obligatorias en Vercel: `SESSION_SECRET` (32+ caracteres), `SETUP_KEY`, `APP_URL` (dominio definitivo, necesario para passkeys y Microsoft).
 2. `DATABASE_URL`: preferí la cadena *pooled* de Neon (host con `-pooler`).

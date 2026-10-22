@@ -94,6 +94,7 @@ async function general(body) {
       <label class="field"><span>Título del portal</span><input class="input" name="portal_title" value="${esc(hd.portal_title || 'Centro de ayuda')}"></label>
     </div>
     <label class="check"><input type="checkbox" name="portal_enabled" ${hd.portal_enabled !== false ? 'checked' : ''}> Portal de soporte habilitado</label>
+    <label class="check"><input type="checkbox" name="portal_microsoft" ${hd.portal_microsoft !== false ? 'checked' : ''}> Ingreso con Microsoft en el portal <small class="muted">— cada empleado ve solo sus tickets (usa la app de Microsoft 365 ya configurada)</small></label>
     <label class="check"><input type="checkbox" name="notify_contact_on_create" ${hd.notify_contact_on_create !== false ? 'checked' : ''}> Avisar al contacto cuando se crea su ticket</label>
     <label class="check"><input type="checkbox" name="notify_contact_on_resolve" ${hd.notify_contact_on_resolve !== false ? 'checked' : ''}> Avisar al contacto cuando se resuelve</label>
     <label class="check"><input type="checkbox" name="notify_agent_on_assign" ${hd.notify_agent_on_assign !== false ? 'checked' : ''}> Enviar correo al agente cuando se le asigna un ticket</label>
@@ -160,7 +161,7 @@ async function general(body) {
           method: 'PUT',
           body: {
             support_email: f.support_email.value.trim(), timezone: f.timezone.value.trim(), auto_close_days: Number(f.auto_close_days.value) || 0,
-            portal_title: f.portal_title.value, portal_enabled: f.portal_enabled.checked, notify_contact_on_create: f.notify_contact_on_create.checked,
+            portal_title: f.portal_title.value, portal_enabled: f.portal_enabled.checked, portal_microsoft: f.portal_microsoft.checked, notify_contact_on_create: f.notify_contact_on_create.checked,
             notify_contact_on_resolve: f.notify_contact_on_resolve.checked, notify_agent_on_assign: f.notify_agent_on_assign.checked,
             business: { days: [...f.querySelectorAll('[name=day]:checked')].map((x) => Number(x.value)), start: f.start.value, end: f.end.value },
             holidays: f.holidays.value.split(/\s+/).map((x) => x.trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)),

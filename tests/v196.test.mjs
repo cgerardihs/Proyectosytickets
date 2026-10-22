@@ -98,7 +98,7 @@ test('portal: el enlace no se renueva, vence a los 30 días, se puede anular y n
 
   // Feedback: solo el solicitante actual
   await q('update tickets set contact_id=(select id from contacts where email=$2) where id=$1', [t.id, 'otro@hanseatica.com']);
-  assert.equal((await p.post('/portal/ticket/feedback', { token, helpful: true })).status, 404);
+  assert.equal((await p.post('/portal/ticket/feedback', { token, helpful: true })).status, 401, 'igual que ver o responder: el enlace ya no vale para ese ticket');
   await q('update tickets set contact_id=$2 where id=$1', [t.id, t.contact_id]);
 
   // Anular todos los enlaces
