@@ -4,6 +4,7 @@ import {
   confirmDialog, promptDialog, canPurge, isAdmin, isManager, todayISO, plain, newKey, showRemoteImages,
 } from '../core.js';
 import { setCrumbs, refreshMeta } from '../app.js';
+import { ticketCriticalHtml, wireTicketCritical } from '../critical.js';
 
 const ACTION_TEXT = {
   created: 'creó el ticket', replied: 'respondió al contacto', note: 'agregó una nota privada', forwarded: 'reenvió el ticket',
@@ -12,6 +13,7 @@ const ACTION_TEXT = {
   resolved_by_contact: 'El contacto lo marcó como resuelto', auto_closed: 'Se cerró automáticamente',
   ai_auto_reply: 'Se envió la respuesta automática', ai_feedback: 'El usuario respondió a la respuesta automática', ai_classified: 'La IA clasificó el ticket al crearlo',
   intune_action: 'envió una acción remota al equipo',
+  critical_linked: 'lo vinculó a un sistema crítico', critical_unlinked: 'lo desvinculó de un sistema crítico',
 };
 // Nombres de los campos (los configurables salen de fieldLabel, así el historial usa el nombre actual)
 const FIELD_KEY = { status_id: 'status', priority: 'priority', assignee_id: 'assignee', category_id: 'category', type_id: 'type', tech_category_id: 'tech', tech_subcategory_id: 'subtech', sla_id: 'sla', contact_id: 'contact' };
@@ -174,6 +176,7 @@ export async function render(el, [num]) {
       </section>
       <aside class="tk-side">
         <div class="copilot-slot">${showCopilot ? copilotHtml() : ''}</div>
+        <div class="crit-slot">${ticketCriticalHtml(d.critical)}</div>
         <div class="card props">
           <h3>Propiedades del ticket</h3>
           ${propsForm(t)}
@@ -212,6 +215,7 @@ export async function render(el, [num]) {
       </aside>
     </div>`;
     wireProps();
+    wireTicketCritical(el.querySelector('.crit-slot'), t.number, load);
     if (composer) openComposer(composer.kind, true);
   }
 
@@ -245,6 +249,7 @@ export async function render(el, [num]) {
       }
       if (a.action === 'merged') extra = `<li>En <a href="#/tickets/${a.details.into}">#${a.details.into}</a></li>`;
       if (a.action === 'merged_from') extra = `<li>Desde #${a.details.from}</li>`;
+      if (a.action === 'critical_linked' || a.action === 'critical_unlinked') extra = `<li>${esc(a.details.system || '')}</li>`;
       if (a.action === 'dev_rule') {
         const ev = { convert: 'al convertir', start: 'arrancó el desarrollo', phase: 'cambio de fase', finish: 'terminó el desarrollo', issues_done: 'se finalizaron las tareas vinculadas' };
         extra = `<li>${esc(String(a.details.event || '').split(',').map((x) => ev[x] || x).join(' · '))}${a.details.issues?.length ? ` (${a.details.issues.map((k) => `<a href="#/issue/${esc(k)}">${esc(k)}</a>`).join(', ')})` : ''}${a.details.phase ? ` → fase <b>${esc(a.details.phase)}</b>` : ''}${a.details.status ? ` · estado <b>${esc(a.details.status)}</b>` : ' · estado sin cambio'}</li>`;

@@ -1,6 +1,7 @@
 import { state, api, esc, icon, techName, fieldLabel, userName, categoryName, PRIORITY, PRIORITY_COLOR, fmtNum, fmtShortDate, relTime, isManager, options } from '../core.js';
 import { setCrumbs } from '../app.js';
 import { hbars, lineChart } from '../charts.js';
+import { criticalPanelHtml, wireCriticalPanel } from '../critical.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -8,10 +9,11 @@ export async function render(el, _p, query) {
   const scope = query.scope === 'team' ? 'team' : 'mine';
   const agent = scope === 'team' && query.agent ? Number(query.agent) : null;
   setCrumbs([{ label: 'Inicio' }]);
-  const [h, work, team] = await Promise.all([
+  const [h, work, team, crit] = await Promise.all([
     api(`/home?scope=${scope}${agent ? `&agent=${agent}` : ''}`),
     api('/my-work'),
     scope === 'team' && !agent ? api('/dashboard?scope=all') : null,
+    api('/critical-systems').catch(() => null), // sistemas críticos (v1.11): si falla, el Inicio igual se ve
   ]);
   const mineQ = scope === 'mine' ? '&assignee=me' : agent ? `&assignee=${agent}` : '';
   const first = state.me.name.split(' ')[0];
@@ -29,6 +31,7 @@ export async function render(el, _p, query) {
         </div>
       </div>
     </div>
+    <div class="crit-slot">${criticalPanelHtml(crit)}</div>
     ${alertsHtml(h, mineQ)}
     <div class="kpis six">
       ${kpi('Abiertos asignados', fmtNum(h.kpis.open), `#/tickets?view=unresolved${mineQ}`)}
@@ -72,6 +75,13 @@ export async function render(el, _p, query) {
     ${team ? teamHtml(team) : ''}
   </div>`;
 
+  // Panel de sistemas críticos: se redibuja solo (sin recargar todo el Inicio) después de informar o resolver
+  const critSlot = el.querySelector('.crit-slot');
+  const drawCrit = (data) => {
+    critSlot.innerHTML = criticalPanelHtml(data);
+    if (data) wireCriticalPanel(critSlot, data, async () => drawCrit(await api('/critical-systems').catch(() => null)));
+  };
+  drawCrit(crit);
   el.querySelector('#agentSel')?.addEventListener('change', (e) => {
     location.hash = `#/?scope=team${e.target.value ? `&agent=${e.target.value}` : ''}`;
   });

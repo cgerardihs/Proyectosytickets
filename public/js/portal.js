@@ -124,6 +124,67 @@ function lookupResult(t) {
   </div>`;
 }
 
+// ---------- Estado de los sistemas críticos (v1.11) ----------
+const CRIT = {
+  ok: ['Operativo', '#059669'], degraded: ['Degradado', '#d97706'], down: ['Caído', '#dc2626'], maint: ['En mantenimiento', '#7c3aed'],
+};
+const critPill = (st) => `<span class="badge" style="--c:${CRIT[st][1]}"><i class="p-dot" style="--c:${CRIT[st][1]}"></i>${CRIT[st][0]}</span>`;
+const hhmm = (d) => new Date(d).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) + ' hs';
+function whenLabel(d) {
+  const x = new Date(d);
+  const tom = new Date();
+  tom.setDate(tom.getDate() + 1);
+  if (x.toDateString() === new Date().toDateString()) return `hoy ${hhmm(x)}`;
+  if (x.toDateString() === tom.toDateString()) return `mañana ${hhmm(x)}`;
+  return `${x.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} ${hhmm(x)}`;
+}
+function inLabel(d) {
+  let m = Math.round((new Date(d) - Date.now()) / 60000);
+  if (m <= 0) return '';
+  if (m < 60) return `en ${m} min`;
+  const h = Math.floor(m / 60);
+  m %= 60;
+  return h >= 48 ? `en ${Math.round(h / 24)} días` : `en ${h} h${m ? ` ${m} min` : ''}`;
+}
+const critLate = (s) => s.state !== 'ok' && s.eta && new Date(s.eta) < new Date();
+let statusCache = null;
+async function loadStatus() {
+  try { statusCache = await papi('/portal/status'); } catch { statusCache = null; }
+  return statusCache;
+}
+
+function statusHtml(st) {
+  if (!st?.enabled || !st.systems.length) return '';
+  const bad = st.systems.filter((x) => x.state !== 'ok');
+  const okList = st.systems.filter((x) => x.state === 'ok');
+  const tone = bad.some((x) => x.state === 'down') ? 'issue' : bad.length ? 'warn' : 'all-ok';
+  return `<section class="p-status" aria-live="polite">
+    <div class="p-status-head ${tone}">
+      ${bad.length ? icon('alert', 22) : icon('check', 22)}
+      <div class="grow"><h2>${bad.length ? (bad.length === 1 ? 'Un sistema tiene problemas' : `${bad.length} sistemas tienen problemas`) : 'Todos los sistemas funcionan con normalidad'}</h2>
+        ${bad.length ? '<p>Ya lo sabemos y estamos trabajando. No hace falta crear un ticket por esto.</p>' : ''}</div>
+      <small class="muted">Actualizado ${hhmm(st.now || new Date())}</small>
+    </div>
+    ${bad.map((x) => `<div class="p-status-row">
+      <div class="p-status-name"><i class="p-dot pulse-${x.state}" style="--c:${CRIT[x.state][1]}"></i><b>${esc(x.name)}</b>${critPill(x.state)}</div>
+      <div class="p-status-detail">
+        ${x.message ? `<p>${esc(x.message)}</p>` : x.description ? `<p class="muted">${esc(x.description)}</p>` : ''}
+        <p>${critLate(x) ? '<b class="p-late">Demorado: estamos actualizando la estimación.</b>' : `Resolución estimada: <b>${whenLabel(x.eta)}</b> <span class="muted">(${inLabel(x.eta)})</span>`}</p>
+        ${x.since ? `<small class="muted">Informado ${relTime(x.since)}</small>` : ''}
+      </div></div>`).join('')}
+    ${okList.length ? `<div class="p-status-ok">${okList.map((x) => `<span title="${esc(x.description || '')}"><i class="p-dot" style="--c:#059669"></i>${esc(x.name)}</span>`).join('')}</div>` : ''}
+  </section>`;
+}
+
+/** Al crear un ticket: si el tema o el asunto apuntan a un sistema con un problema informado, se avisa. */
+const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function knownIssue(st, { subject, text, techId }) {
+  if (!st?.enabled || st.ticket_warning === false) return null;
+  const words = ` ${norm(`${subject} ${text}`).replace(/[^a-z0-9]+/g, ' ')} `;
+  return st.systems.find((x) => x.state !== 'ok' && ((x.tech_category_id && String(x.tech_category_id) === String(techId))
+    || norm(x.name).split(/[^a-z0-9]+/).filter((w) => w.length >= 3).some((w) => words.includes(` ${w} `)))) || null;
+}
+
 async function route() {
   const hash = location.hash || '#/';
   const [path, qs] = hash.split('?');
@@ -160,6 +221,7 @@ function home() {
       <p>Busque una respuesta o cree un ticket para la mesa de ayuda.</p>
       <form class="p-search" data-search>${icon('search', 18)}<input name="q" placeholder="Ej. cómo resetear la clave" aria-label="Buscar artículos"><button class="btn primary">Buscar</button></form>
     </section>
+    <div data-status>${statusHtml(statusCache)}</div>
     ${lookupBox()}
     <div class="p-cards">
       <a class="p-card" href="#/nuevo">${icon('plus', 26)}<div><b>Crear un ticket</b><p>Informe un problema o haga un pedido.</p></div></a>
@@ -172,6 +234,11 @@ function home() {
     location.hash = `#/kb?q=${encodeURIComponent(e.target.q.value)}`;
   });
   bindLookup(root);
+  // El estado se refresca cada vez que se entra al inicio (y cada minuto mientras está abierto)
+  const slot = root.querySelector('[data-status]');
+  const refresh = async () => { if (!slot.isConnected) return clearInterval(timer); slot.innerHTML = statusHtml(await loadStatus()); };
+  const timer = setInterval(refresh, 60000);
+  refresh();
 }
 
 function lookupView(prefill) {
@@ -214,6 +281,7 @@ function newTicket() {
         <label class="field"><span>Área</span><select class="input" name="category_id"><option value="">Seleccione…</option>${cfg.categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
         <label class="field"><span>Tema</span><select class="input" name="tech_category_id"><option value="">Seleccione…</option>${cfg.techCategories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></label>
       </div>
+      <div class="p-known" data-known hidden aria-live="polite"></div>
       <label class="field"><span>Descripción *</span><textarea class="input" name="body_text" rows="7" required placeholder="Cuéntenos qué pasa, desde cuándo y qué ve en pantalla."></textarea></label>
       <div class="p-suggest" data-suggest hidden aria-live="polite"></div>
       <div class="field"><span>Adjuntos (máx. 5, 3 MB c/u)</span><input type="file" multiple name="files"><div class="atts" data-files></div></div>
@@ -260,6 +328,25 @@ function newTicket() {
       box.hidden = false;
     } catch { /* las sugerencias son opcionales */ }
   }
+  // Problema ya informado en un sistema crítico: se avisa antes de crear un ticket repetido
+  const known = root.querySelector('[data-known]');
+  let dismissed = null;
+  const checkKnown = () => {
+    const sys = knownIssue(statusCache, { subject: f.subject.value, text: f.body_text.value, techId: f.tech_category_id.value });
+    if (!sys || dismissed === sys.id) { known.hidden = true; known.innerHTML = ''; return; }
+    known.innerHTML = `${icon('alert', 22)}<div><b>${esc(sys.name)}: ${CRIT[sys.state][0].toLowerCase()}. Ya lo estamos resolviendo.</b>
+      <p>${sys.message ? `${esc(sys.message)} ` : ''}Resolución estimada: <b>${critLate(sys) ? 'demorada, estamos actualizando la estimación' : whenLabel(sys.eta)}</b>. No hace falta crear un ticket por esto; si su problema es otro, siga igual.</p>
+      <div class="row gap wrap"><button type="button" class="btn sm primary" data-known-ok>Entendido, no crear el ticket</button><button type="button" class="btn sm" data-known-other>Mi problema es otro</button></div></div>`;
+    known.hidden = false;
+    known.querySelector('[data-known-ok]').onclick = () => {
+      root.innerHTML = `<div class="p-done">${icon('check', 40)}<h2>Gracias por avisar</h2><p>Ya estamos trabajando en ${esc(sys.name)}. Puede seguir el estado en el inicio del centro de ayuda.</p><p><a class="btn" href="#/">Volver al inicio</a></p></div>`;
+    };
+    known.querySelector('[data-known-other]').onclick = () => { dismissed = sys.id; checkKnown(); };
+  };
+  if (!statusCache) loadStatus().then(checkKnown);
+  f.subject.addEventListener('input', checkKnown);
+  f.body_text.addEventListener('input', checkKnown);
+  f.tech_category_id.addEventListener('change', checkKnown);
   const later = () => { clearTimeout(timer); timer = setTimeout(suggest, 1200); };
   f.subject.addEventListener('input', later);
   f.body_text.addEventListener('input', later);

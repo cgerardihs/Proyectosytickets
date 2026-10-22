@@ -16,6 +16,7 @@ import { authRoutes } from '../lib/routes/auth.js';
 import { ticketRoutes } from '../lib/routes/tickets.js';
 import { projectRoutes } from '../lib/routes/projects.js';
 import { portalRoutes } from '../lib/routes/portal.js';
+import { criticalRoutes } from '../lib/routes/critical.js';
 import { superRoutes } from '../lib/routes/super.js';
 import { homeRoutes } from '../lib/routes/home.js';
 import { aiRoutes } from '../lib/routes/ai.js';
@@ -30,6 +31,7 @@ authRoutes(router);
 ticketRoutes(router);
 projectRoutes(router);
 portalRoutes(router);
+criticalRoutes(router);
 superRoutes(router);
 homeRoutes(router);
 aiRoutes(router);
@@ -40,7 +42,7 @@ importRoutes(router);
 
 // Health check: revisa la base y las migraciones. 200 si está sano, 503 si no.
 router.get('/health', async () => {
-  const out = { status: 'ok', time: new Date().toISOString(), version: process.env.npm_package_version || '1.10.1', checks: {} };
+  const out = { status: 'ok', time: new Date().toISOString(), version: process.env.npm_package_version || '1.11.0', checks: {} };
   try {
     out.checks.database = { ok: true, latency_ms: await ping() };
     const m = await migrationStatus();

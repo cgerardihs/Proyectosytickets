@@ -76,6 +76,10 @@ Veredicto y cambios, punto por punto:
 - Los tickets se asocian por el id de Entra (oid); por correo solo con contactos no vinculados a otra cuenta (un correo reasignado no hereda los tickets del anterior).
 - Con sesión, cada acción sobre un ticket (ver, responder, adjuntos, resolver, opinar de la respuesta automática) vuelve a comprobar que el ticket sea de un contacto de esa persona. El ticket nuevo queda a nombre de la cuenta (no se puede abrir a nombre de otro).
 
+## v1.11: sistemas críticos
+- `GET /api/portal/status` es público y devuelve solo nombre, descripción, estado, hora estimada, mensaje y desde cuándo de los sistemas marcados como públicos (nunca quién lo informó ni los tickets). Con el portal apagado o la opción desactivada no devuelve nada.
+- Informar o resolver requiere sesión de agente (opcionalmente solo supervisores y administradores); la configuración, administrador. Al resolver con respuesta a los tickets relacionados, los correos cuentan para el tope de envíos por hora del agente (hasta 100 tickets por vez).
+
 ## Al publicar
 1. Variables nuevas u obligatorias en Vercel: `SESSION_SECRET` (32+ caracteres), `SETUP_KEY`, `APP_URL` (dominio definitivo, necesario para passkeys y Microsoft).
 2. `DATABASE_URL`: preferí la cadena *pooled* de Neon (host con `-pooler`).

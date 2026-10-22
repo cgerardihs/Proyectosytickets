@@ -17,6 +17,7 @@ const SECTIONS = [
   ['m365', 'Microsoft 365', 'layers'],
   ['dev', 'Proyectos y portfolio', 'projects'],
   ['portfolio', 'Origen, sector IT y horas', 'list'],
+  ['critical', 'Sistemas críticos', 'pulse'],
   ['canned', 'Respuestas predefinidas', 'sparkles'],
   ['channels', 'Correo e integraciones', 'mail'],
   ['import', 'Importar datos', 'upload'],
@@ -925,4 +926,84 @@ async function portfolioLists(body) {
   });
 }
 
-const RENDER = { general, agents, fields, sla, rules, canned, channels, superadmin, database: dbAdmin, dev, portfolio: portfolioLists, aging, ai, m365, import: importData };
+// ---------- Sistemas críticos (v1.11) ----------
+async function criticalSystems(body) {
+  const [list, hd] = await Promise.all([api('/admin/critical-systems'), api('/admin/settings/helpdesk')]);
+  const techs = (state.meta.techCategories || []).filter((x) => x.active !== false);
+  const STATE = { ok: ['Operativo', 'var(--ok)'], degraded: ['Degradado', 'var(--warn)'], down: ['Caído', 'var(--danger)'], maint: ['Mantenimiento', '#7c3aed'] };
+  const opt = (key, def, label, hint = '') => `<label class="check"><input type="checkbox" name="${key}" ${(def ? hd[key] !== false : hd[key] === true) ? 'checked' : ''}> <span>${label}${hint ? ` <small class="muted">${hint}</small>` : ''}</span></label>`;
+  body.innerHTML = `<div class="card">
+      <h3>${icon('pulse', 16)} Sistemas críticos</h3>
+      <p class="hint" style="margin-top:-4px">Aparecen arriba de todo en el Inicio de los agentes. Cuando un sistema falla, cualquier agente lo marca (caído, degradado o en mantenimiento) con la hora estimada de resolución, y si es <b>público</b> se ve en el estado de sistemas del portal. El <b>tema</b> sirve para avisarle al usuario que ya está informado cuando elige ese tema al crear un ticket.</p>
+      <div class="table-wrap"><table class="tbl compact edit-tbl crit-tbl"><thead><tr><th>Sistema</th><th>Descripción (se ve en el portal)</th><th>Tema del ticket</th><th>Público</th><th>Activo</th><th>Orden</th><th>Estado</th><th></th></tr></thead><tbody>
+      ${list.map((x) => `<tr data-id="${x.id}" class="${x.active ? '' : 'inactive'}">
+        <td><input class="input sm" name="name" value="${esc(x.name)}" maxlength="80" aria-label="Nombre"></td>
+        <td><input class="input sm" name="description" value="${esc(x.description || '')}" maxlength="200" aria-label="Descripción"></td>
+        <td><select class="input sm" name="tech_category_id" aria-label="Tema"><option value="">—</option>${techs.map((t) => `<option value="${t.id}" ${t.id === x.tech_category_id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></td>
+        <td><input type="checkbox" name="public" ${x.public ? 'checked' : ''} aria-label="Público"></td>
+        <td><input type="checkbox" name="active" ${x.active ? 'checked' : ''} aria-label="Activo"></td>
+        <td><input class="input sm" type="number" min="0" name="sort" value="${x.sort}" style="width:64px" aria-label="Orden"></td>
+        <td><span class="crit-pill" style="--c:${STATE[x.state][1]}"><i class="crit-dot"></i>${STATE[x.state][0]}</span></td>
+        <td class="row nowrap"><button class="btn sm" data-crit-save>Guardar</button><button class="icon-btn sm" data-crit-del title="Eliminar">${icon('trash', 13)}</button></td></tr>`).join('')
+        || '<tr><td colspan="8" class="muted small">Todavía no hay sistemas. Agregá los que usa la empresa: CRM, Equis, correo, VPN…</td></tr>'}
+      </tbody></table></div>
+      <form class="row gap wrap crit-add" data-crit-add>
+        <input class="input sm grow" name="name" maxlength="80" placeholder="Nombre (ej. CRM comercial)" required>
+        <input class="input sm grow" name="description" maxlength="200" placeholder="Descripción corta (ej. Gestión comercial y cobranzas)">
+        <label class="check sm"><input type="checkbox" name="public" checked> Público</label>
+        <button class="btn sm primary">${icon('plus', 13)} Agregar</button>
+      </form>
+    </div>
+    <form class="card" data-crit-opts>
+      <h3>Opciones</h3>
+      ${opt('critical_portal', true, 'Mostrar el estado de los sistemas en el inicio del portal')}
+      ${opt('critical_ticket_warning', true, 'Al crear un ticket en el portal, avisar si el sistema tiene un problema informado', '(evita tickets repetidos)')}
+      ${opt('critical_late_notify', true, 'Cuando vence la hora estimada, avisarle a quien lo informó', '(el portal muestra "Demorado")')}
+      ${opt('critical_resolve_tickets', true, 'Al marcar resuelto, ofrecer responder y resolver los tickets relacionados', '(tildado de fábrica en el aviso)')}
+      ${opt('critical_managers_only', false, 'Solo supervisores y administradores pueden informar problemas', '(apagado: cualquier agente)')}
+      <button class="btn primary">Guardar opciones</button>
+    </form>`;
+  const rowBody = (tr) => ({
+    name: tr.querySelector('[name=name]').value.trim(),
+    description: tr.querySelector('[name=description]').value.trim(),
+    tech_category_id: Number(tr.querySelector('[name=tech_category_id]').value) || null,
+    public: tr.querySelector('[name=public]').checked,
+    active: tr.querySelector('[name=active]').checked,
+    sort: Math.max(0, Math.round(Number(tr.querySelector('[name=sort]').value) || 0)),
+  });
+  body.addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr[data-id]');
+    try {
+      if (e.target.closest('[data-crit-save]')) {
+        const b = rowBody(tr);
+        if (!b.name) return toast('El nombre es obligatorio', 'error');
+        await api(`/admin/critical-systems/${tr.dataset.id}`, { method: 'PATCH', body: b });
+        toast('Guardado');
+        reloadSection();
+      }
+      if (e.target.closest('[data-crit-del]')) {
+        if (!(await confirmDialog('¿Eliminar este sistema? Se borra también su historial. Si solo querés que no aparezca, desactivalo.', { danger: true, okText: 'Eliminar' }))) return;
+        await api(`/admin/critical-systems/${tr.dataset.id}`, { method: 'DELETE' });
+        reloadSection();
+      }
+    } catch (er) { toastError(er); }
+  });
+  body.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    try {
+      if (f.matches('[data-crit-add]')) {
+        await api('/admin/critical-systems', { method: 'POST', body: { name: f.querySelector('[name=name]').value.trim(), description: f.querySelector('[name=description]').value.trim(), public: f.querySelector('[name=public]').checked, sort: list.length + 1 } });
+        toast('Sistema agregado');
+        reloadSection();
+      }
+      if (f.matches('[data-crit-opts]')) {
+        const keys = ['critical_portal', 'critical_ticket_warning', 'critical_late_notify', 'critical_resolve_tickets', 'critical_managers_only'];
+        await api('/admin/settings/helpdesk', { method: 'PUT', body: Object.fromEntries(keys.map((k) => [k, f[k].checked])) });
+        toast('Opciones guardadas');
+      }
+    } catch (er) { toastError(er); }
+  });
+}
+
+const RENDER = { general, agents, fields, sla, rules, canned, channels, superadmin, database: dbAdmin, dev, portfolio: portfolioLists, critical: criticalSystems, aging, ai, m365, import: importData };
