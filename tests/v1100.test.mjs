@@ -36,10 +36,17 @@ test('preparación', async () => {
 test('consulta por número: con el correo del solicitante o de alguien en copia; si no, el mismo "no encontrado"', async () => {
   let r = await anon.post('/portal/lookup', { number: tA.number, email: 'ARuiz@hanseatica.com' });
   ok(r);
-  assert.equal(r.data.subject, null, 'sin sesión no muestra el asunto (el correo se puede adivinar)');
+  assert.equal(r.data.subject, 'No anda la VPN');
+  assert.deepEqual(r.data.messages.map((m) => m.kind), ['customer']);
   assert.ok(r.data.status && r.data.status_kind);
   assert.equal(r.data.can_open, false, 'sin sesión no abre la conversación');
-  assert.equal(r.data.messages, undefined, 'la consulta no devuelve la conversación');
+  // La conversación incluye las respuestas de la mesa, pero nunca las notas internas
+  const tk = await one('select id from tickets where number=$1', [tA.number]);
+  await q(`insert into ticket_messages(ticket_id,kind,body_html) values ($1,'reply','<p>Estamos viendo la VPN</p>'),($1,'note','<p>NOTA INTERNA</p>')`, [tk.id]);
+  r = await anon.post('/portal/lookup', { number: tA.number, email: 'aruiz@hanseatica.com' });
+  assert.deepEqual(r.data.messages.map((m) => m.kind), ['customer', 'reply']);
+  assert.ok(!JSON.stringify(r.data).includes('NOTA INTERNA'));
+  assert.equal(r.data.messages[1].author, 'Mesa de ayuda');
   ok(await anon.post('/portal/lookup', { number: tB.number, email: 'jefe@hanseatica.com' }), 'en copia');
   const wrong = await anon.post('/portal/lookup', { number: tB.number, email: 'aruiz@hanseatica.com' });
   const none = await anon.post('/portal/lookup', { number: 99999, email: 'aruiz@hanseatica.com' });
@@ -80,7 +87,7 @@ test('Mis tickets con Microsoft: solo los propios (por cualquiera de sus correos
   ok(r);
   assert.equal(r.data.token, null, 'con sesión no se emite enlace');
   ok(await ana.post('/portal/ticket/reply', { number: tA.number, body_text: 'Sigue sin andar' }));
-  assert.equal((await ana.post('/portal/ticket', { number: tA.number })).data.messages.length, 2);
+  assert.equal((await ana.post('/portal/ticket', { number: tA.number })).data.messages.length, 3, 'mensaje inicial, respuesta de la mesa y la suya (la nota interna no');
   // El ticket de otro: no
   assert.equal((await ana.post('/portal/ticket', { number: tB.number })).status, 404);
   assert.equal((await ana.post('/portal/ticket/reply', { number: tB.number, body_text: 'x' })).status, 404);

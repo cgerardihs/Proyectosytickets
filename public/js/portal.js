@@ -99,9 +99,10 @@ function bindLookup(scope) {
 }
 
 function lookupResult(t) {
-  const next = t.can_open ? `<a class="btn" href="#/t/${t.number}">Ver la conversación ${icon('right', 14)}</a>`
-    : cfg.microsoft && !cfg.me ? `Para ver la conversación y responder, <a href="${MS_START}">ingrese con su cuenta de Microsoft</a> o use el enlace “Ver el ticket” del correo.`
-      : 'Para ver la conversación y responder, use el enlace “Ver el ticket” que recibió por correo.';
+  const next = t.can_open ? `<a class="btn" href="#/t/${t.number}">Responder o adjuntar ${icon('right', 14)}</a>`
+    : cfg.microsoft && !cfg.me ? `Para responder o descargar adjuntos, <a href="${MS_START}">ingrese con su cuenta de Microsoft</a> o use el enlace “Ver el ticket” del correo.`
+      : 'Para responder o descargar adjuntos, use el enlace “Ver el ticket” que recibió por correo, o responda ese correo.';
+  const msgs = t.messages || [];
   return `<div class="p-lk-res">
     <div class="p-lk-top"><div class="grow">${t.subject ? `<small class="muted">Ticket #${t.number}</small><b>${esc(t.subject)}</b>` : `<b>Ticket #${t.number}</b>`}</div>${stBadge(t.status, t.status_kind)}</div>
     ${ST_HINT[t.status_kind] ? `<p class="p-lk-hint">${ST_HINT[t.status_kind]}</p>` : ''}
@@ -113,6 +114,12 @@ function lookupResult(t) {
       ${t.resolved_at ? `<div><dt>Resuelto</dt><dd>${fmtDay(t.resolved_at)}</dd></div>` : ''}
     </dl>
     ${(t.development || []).map((p) => `<div class="p-lk-dev"><span>${esc(p.name || 'Avance del desarrollo')}</span><span class="progress"><span style="width:${p.progress}%"></span></span><b>${p.finished ? 'Finalizado' : `${p.progress}%`}</b></div>`).join('')}
+    ${msgs.length ? `<h3 class="p-lk-conv">Conversación <small class="muted">${msgs.length} mensaje${msgs.length === 1 ? '' : 's'}</small></h3>
+    <div class="thread p-lk-thread">${msgs.map((m) => `<article class="msg ${m.kind === 'reply' ? 'reply' : 'customer'} ${m.auto ? 'auto' : ''}"><div class="msg-body">
+      <header><b>${esc(m.auto ? 'Asistente de la Mesa de Ayuda' : m.author || 'Usted')}</b>${m.auto ? '<span class="msg-kind">Respuesta automática</span>' : m.kind === 'reply' ? '<span class="msg-kind">Mesa de ayuda</span>' : ''}<time>${fmtDateTime(m.created_at)}</time></header>
+      <div class="msg-html">${sanitize(m.body_html)}</div>
+      ${m.attachments.length ? `<div class="atts">${m.attachments.map((a) => `<span class="chip" title="Para descargarlo, ingrese o use el enlace del correo">${icon('clip', 12)} ${esc(a.filename)} <small>${fmtSize(a.size)}</small></span>`).join('')}</div>` : ''}
+    </div></article>`).join('')}</div>` : ''}
     <p class="p-lk-next">${next}</p>
   </div>`;
 }
