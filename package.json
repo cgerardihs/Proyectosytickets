@@ -1,0 +1,31 @@
+{
+  "name": "hanseatica-desk",
+  "version": "1.9.9",
+  "description": "Mesa de ayuda + gestión de proyectos (Vercel + Neon)",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "backup": "node scripts/backup.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "migrate:status": "node scripts/migrate.mjs --status",
+    "predeploy": "npm run check:secrets && npm test",
+    "vercel-build": "node scripts/vercel-build.mjs",
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/*.e2e.mjs"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "@simplewebauthn/server": "13.3.3",
+    "hash-wasm": "4.12.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.9",
+    "playwright": "^1.56.0"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  }
+}

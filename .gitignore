@@ -1,0 +1,11 @@
+# Dependencias y datos locales
+node_modules/
+.pglite/
+*.log
+.vercel/
+# Secretos: nunca al repositorio (van en las variables de entorno de Vercel)
+.env
+.env.*
+!.env.example
+*.pem
+*.key

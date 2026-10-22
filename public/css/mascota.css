@@ -1,0 +1,64 @@
+/* ============================================================
+   La mascota del ingreso — estilos.
+
+   Todo el color sale de tres variables. Si el sistema donde la pegues ya
+   tiene las suyas, borrá este bloque `:root` y dejá que herede las de la
+   marca; si no, cambiá estos tres valores y la mascota se pinta sola.
+   ============================================================ */
+/* Los colores exactos del logo oficial. Si en Ajustes → Apariencia alguien
+   cambia la marca, mascota-login.js los pisa con los del tema publicado. */
+:root {
+  --ms-tinta: #000000;   /* el negro del logo */
+  --ms-rojo:  #CE1C3C;   /* el rojo del logo */
+  --ms-oro:   #F8BA03;   /* el amarillo del logo */
+}
+
+.mascota {
+  width: 186px;              /* lo único que define el tamaño */
+  margin: 0 auto 22px;
+  display: block;
+  transform-origin: 50% 100%;
+  transition: transform .4s cubic-bezier(.2, .9, .3, 1);
+}
+.mascota svg { width: 100%; height: auto; display: block; overflow: visible }
+
+/* Se inclina apenas mientras se tapa los ojos: el gesto se lee aunque no
+   mires las manos. */
+.mascota.tapando { transform: translateY(2px) rotate(-1.5deg) }
+
+/* El saltito de cuando la clave estuvo bien. */
+.mascota.salto { animation: ms-salto .55s cubic-bezier(.2, .9, .3, 1) }
+@keyframes ms-salto { 0%, 100% { transform: translateY(0) } 40% { transform: translateY(-13px) } }
+
+.ms-rojo  { fill: var(--ms-rojo) }
+.ms-tinta { fill: var(--ms-tinta) }
+.ms-oro   { fill: var(--ms-oro) }
+
+/* Los ojos cerrados son los del logo: mismo trazo, mismo remate. En reposo
+   la mascota es el logo, sin una línea de diferencia. */
+.ms-cerrados path {
+  fill: none; stroke: var(--ms-tinta); stroke-width: 15; stroke-linecap: butt;
+  transition: opacity .12s linear;
+}
+.ms-abiertos { opacity: 0; transition: opacity .12s linear }
+.ms-pupila { fill: var(--ms-tinta) }
+.ms-brillo { fill: #fff; opacity: .92 }
+.ms-pupila, .ms-brillo { transition: transform .18s cubic-bezier(.3, 1.4, .4, 1) }
+
+/* Las cejas sólo aparecen cuando la clave estuvo mal. */
+.ms-ceja {
+  fill: none; stroke: var(--ms-tinta); stroke-width: 9; stroke-linecap: round;
+  opacity: 0; transition: opacity .2s ease;
+}
+
+.ms-mano { transition: transform .34s cubic-bezier(.34, 1.2, .44, 1) }
+.ms-mano rect { fill: var(--ms-tinta) }
+.ms-mano.der rect { fill: var(--ms-oro) }
+.ms-mano .ms-palma { fill: none; stroke: rgba(255, 255, 255, .5); stroke-width: 3; stroke-linecap: round }
+.ms-mano.der .ms-palma { stroke: rgba(20, 20, 20, .26) }
+
+/* Quien pidió menos movimiento en su sistema operativo ve los mismos gestos,
+   pero sin animación: la accesibilidad no se paga con una función menos. */
+@media (prefers-reduced-motion: reduce) {
+  .mascota, .mascota * { transition: none !important; animation: none !important }
+}
