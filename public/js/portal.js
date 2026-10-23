@@ -15,7 +15,9 @@ async function papi(path, body, { key } = {}) {
     let msg = data.error || `Error ${res.status}`;
     const wait = Number(res.headers.get('Retry-After'));
     if (res.status === 429 && wait) msg += ` (podés reintentar en ${wait > 90 ? `${Math.ceil(wait / 60)} min` : `${wait} s`})`;
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
   }
   return data;
 }
@@ -32,7 +34,14 @@ function storedTickets() {
 }
 
 const MS_LOGO = '<svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>';
-const MS_START = '/api/auth/ms/start?portal=1';
+/** Ingreso con Microsoft: vuelve a la pantalla actual (ej. el enlace de un ticket que llegó por correo). */
+const msStart = () => {
+  const here = location.hash && !/^#\/(ingresar|$)/.test(location.hash) ? location.hash : '#/';
+  return `/api/auth/ms/start?portal=1&next=${encodeURIComponent(here.slice(0, 1500))}`;
+};
+/** ¿Hace falta ingresar? (acceso solo con Microsoft y sin sesión) */
+const needsLogin = () => cfg.access === 'microsoft' && !cfg.me;
+const part = (k) => cfg.parts?.[k] !== false;
 const ST_COLOR = { open: '#2563eb', pending: '#d97706', resolved: '#059669', closed: '#6b7280' };
 const ST_HINT = {
   open: 'La mesa de ayuda está trabajando en su solicitud.',
@@ -57,8 +66,26 @@ function renderSession() {
       if (location.hash === '#/' || !location.hash) route(); else location.hash = '#/';
     });
   } else {
-    box.innerHTML = cfg.microsoft ? `<a class="btn sm p-ms" href="${MS_START}">${MS_LOGO} Ingresar</a>` : '';
+    box.innerHTML = cfg.microsoft && !needsLogin() ? `<a class="btn sm p-ms" href="${msStart()}">${MS_LOGO} Ingresar</a>` : '';
   }
+  // Menú: solo las partes habilitadas, y nada hasta ingresar si el acceso es con Microsoft
+  document.querySelectorAll('.p-top nav [data-part]').forEach((a) => { a.hidden = needsLogin() || !part(a.dataset.part); });
+}
+
+/** Pantalla de ingreso: el portal es solo para la gente de la empresa, con su cuenta de Microsoft. */
+function loginGate(query = new URLSearchParams()) {
+  const err = query.get('error');
+  root.innerHTML = `<section class="p-gate">
+    <div class="p-gate-card">
+      <div class="p-gate-logo">${document.querySelector('.p-logo')?.innerHTML || ''}</div>
+      <h1>${esc(cfg.title || 'Centro de ayuda')}</h1>
+      <p class="muted">Para crear y seguir sus pedidos a la mesa de ayuda, ingrese con su cuenta de la empresa.</p>
+      ${err ? `<p class="callout danger">${icon('alert', 16)} <span><b>No se pudo ingresar con Microsoft.</b> ${esc(err.slice(0, 200))}</span></p>` : ''}
+      ${cfg.microsoft ? `<a class="btn primary p-ms-btn p-gate-btn" href="${msStart()}">${MS_LOGO} Ingresar con Microsoft</a>`
+        : `<p class="callout warn">${icon('alert', 16)} <span>El ingreso con Microsoft todavía no está configurado. ${cfg.support_email ? `Mientras tanto, escríbanos a <b>${esc(cfg.support_email)}</b>.` : 'Avísele a la mesa de ayuda.'}</span></p>`}
+      <small class="muted">Solo cuentas de ${esc(cfg.brand?.name || 'la empresa')}. Ve únicamente sus propios tickets.</small>
+    </div>
+  </section>`;
 }
 
 /** Consulta rápida: número de ticket (+ correo si no ingresó) → estado. */
@@ -100,7 +127,7 @@ function bindLookup(scope) {
 
 function lookupResult(t) {
   const next = t.can_open ? `<a class="btn" href="#/t/${t.number}">Responder o adjuntar ${icon('right', 14)}</a>`
-    : cfg.microsoft && !cfg.me ? `Para responder o descargar adjuntos, <a href="${MS_START}">ingrese con su cuenta de Microsoft</a> o use el enlace “Ver el ticket” del correo.`
+    : cfg.microsoft && !cfg.me ? `Para responder o descargar adjuntos, <a href="${msStart()}">ingrese con su cuenta de Microsoft</a> o use el enlace “Ver el ticket” del correo.`
       : 'Para responder o descargar adjuntos, use el enlace “Ver el ticket” que recibió por correo, o responda ese correo.';
   const msgs = t.messages || [];
   return `<div class="p-lk-res">
@@ -192,6 +219,15 @@ async function route() {
   root.innerHTML = '<div class="loading"><span class="spinner"></span></div>';
   try {
     if (!cfg.enabled) return disabled();
+    if (needsLogin()) return loginGate(path === '#/ingresar' ? query : undefined);
+    if (path === '#/ingresar') {
+      if (cfg.me) { location.replace('#/'); return; }
+      return cfg.access === 'microsoft' ? loginGate(query) : loginView(query);
+    }
+    // Partes apagadas en Configuración → Portal: vuelven al inicio
+    const off = (path.startsWith('#/kb') && !part('kb')) || (path === '#/consultar' && !part('lookup')) || (path.startsWith('#/nuevo') && !part('create'))
+      || (path.startsWith('#/mis-tickets') && !part('my_tickets'));
+    if (off) { location.replace('#/'); return; }
     let m;
     if ((m = /^#\/ticket\/(.+)$/.exec(hash))) return await ticketView(decodeURIComponent(m[1]));
     if ((m = /^#\/t\/(\d{1,9})$/.exec(path))) return await ticketView(null, Number(m[1]));
@@ -203,8 +239,9 @@ async function route() {
     if (hash.startsWith('#/kb')) return await kbList(new URLSearchParams(hash.split('?')[1] || ''));
     return home();
   } catch (e) {
-    // La sesión de Microsoft venció: se refleja en el encabezado
-    if (/sesión venció/.test(e.message) && cfg.me) { cfg.me = null; renderSession(); }
+    // La sesión de Microsoft venció: se refleja en el encabezado (y, si el acceso es solo con Microsoft, se pide ingresar)
+    if ((e.status === 401 || /sesión venció/.test(e.message)) && cfg.me) { cfg.me = null; renderSession(); }
+    if (e.status === 401 && cfg.access === 'microsoft') { cfg.me = null; renderSession(); return loginGate(); }
     root.innerHTML = `<div class="p-done">${icon('alert', 36)}<h2>${esc(e.message)}</h2><p><a href="#/">Volver al inicio</a></p></div>`;
   }
   window.scrollTo(0, 0);
@@ -215,27 +252,32 @@ function disabled() {
 }
 
 function home() {
+  const kbCats = part('kb') ? cfg.kbCategories.filter((c) => c.articles) : [];
+  const cards = [
+    part('create') ? `<a class="p-card" href="#/nuevo">${icon('plus', 26)}<div><b>Crear un ticket</b><p>Informe un problema o haga un pedido.</p></div></a>` : '',
+    part('my_tickets') ? `<a class="p-card" href="#/mis-tickets">${icon('ticket', 26)}<div><b>Mis tickets</b><p>${cfg.me ? 'Vea todas sus solicitudes y responda.' : cfg.microsoft ? 'Ingrese con su cuenta de Microsoft y vea todas sus solicitudes.' : 'Consulte el estado de sus solicitudes.'}</p></div></a>` : '',
+    part('kb') ? `<a class="p-card" href="#/kb">${icon('book', 26)}<div><b>Artículos</b><p>Guías y preguntas frecuentes.</p></div></a>` : '',
+  ].filter(Boolean);
+  const first = cfg.me?.name ? cfg.me.name.split(' ')[0] : '';
   root.innerHTML = `
     <section class="p-hero">
-      <h1>¿En qué podemos ayudarlo?</h1>
-      <p>Busque una respuesta o cree un ticket para la mesa de ayuda.</p>
-      <form class="p-search" data-search>${icon('search', 18)}<input name="q" placeholder="Ej. cómo resetear la clave" aria-label="Buscar artículos"><button class="btn primary">Buscar</button></form>
+      <h1>${first ? `Hola, ${esc(first)}. ` : ''}¿En qué podemos ayudarlo?</h1>
+      <p>${part('kb') && part('create') ? 'Busque una respuesta o cree un ticket para la mesa de ayuda.' : part('kb') ? 'Busque una respuesta en las guías de la mesa de ayuda.' : part('create') ? 'Cree un ticket para la mesa de ayuda.' : 'Centro de ayuda de la mesa de ayuda.'}</p>
+      ${part('kb') ? `<form class="p-search" data-search>${icon('search', 18)}<input name="q" placeholder="Ej. cómo resetear la clave" aria-label="Buscar artículos"><button class="btn primary">Buscar</button></form>` : ''}
     </section>
-    <div data-status>${statusHtml(statusCache)}</div>
-    ${lookupBox()}
-    <div class="p-cards">
-      <a class="p-card" href="#/nuevo">${icon('plus', 26)}<div><b>Crear un ticket</b><p>Informe un problema o haga un pedido.</p></div></a>
-      <a class="p-card" href="#/mis-tickets">${icon('ticket', 26)}<div><b>Mis tickets</b><p>${cfg.me ? 'Vea todas sus solicitudes y responda.' : cfg.microsoft ? 'Ingrese con su cuenta de Microsoft y vea todas sus solicitudes.' : 'Consulte el estado de sus solicitudes.'}</p></div></a>
-      <a class="p-card" href="#/kb">${icon('book', 26)}<div><b>Artículos</b><p>Guías y preguntas frecuentes.</p></div></a>
-    </div>
-    ${cfg.kbCategories.filter((c) => c.articles).length ? `<h2 style="margin-bottom:12px">Categorías</h2><div class="p-cards">${cfg.kbCategories.filter((c) => c.articles).map((c) => `<a class="p-card" href="#/kb?category=${c.id}">${icon('book', 22)}<div><b>${esc(c.name)}</b><p>${c.articles} artículo${c.articles === 1 ? '' : 's'}${c.description ? ` · ${esc(c.description)}` : ''}</p></div></a>`).join('')}</div>` : ''}`;
-  root.querySelector('[data-search]').addEventListener('submit', (e) => {
+    ${part('status') ? `<div data-status>${statusHtml(statusCache)}</div>` : ''}
+    ${part('lookup') ? lookupBox() : ''}
+    ${cards.length ? `<div class="p-cards">${cards.join('')}</div>` : ''}
+    ${kbCats.length ? `<h2 style="margin-bottom:12px">Categorías</h2><div class="p-cards">${kbCats.map((c) => `<a class="p-card" href="#/kb?category=${c.id}">${icon('book', 22)}<div><b>${esc(c.name)}</b><p>${c.articles} artículo${c.articles === 1 ? '' : 's'}${c.description ? ` · ${esc(c.description)}` : ''}</p></div></a>`).join('')}</div>` : ''}
+    ${!cards.length && !part('lookup') && !part('status') ? `<div class="p-done"><p class="muted">Para pedir ayuda, escríbanos${cfg.support_email ? ` a <b>${esc(cfg.support_email)}</b>` : ' por correo'}.</p></div>` : ''}`;
+  root.querySelector('[data-search]')?.addEventListener('submit', (e) => {
     e.preventDefault();
     location.hash = `#/kb?q=${encodeURIComponent(e.target.q.value)}`;
   });
-  bindLookup(root);
+  if (part('lookup')) bindLookup(root);
   // El estado se refresca cada vez que se entra al inicio (y cada minuto mientras está abierto)
   const slot = root.querySelector('[data-status]');
+  if (!slot) return;
   const refresh = async () => { if (!slot.isConnected) return clearInterval(timer); slot.innerHTML = statusHtml(await loadStatus()); };
   const timer = setInterval(refresh, 60000);
   refresh();
@@ -398,7 +440,7 @@ function loginView(query = new URLSearchParams()) {
     ${err ? `<p class="callout danger">${icon('alert', 16)} <span><b>No se pudo ingresar con Microsoft.</b> ${esc(err.slice(0, 200))}</span></p>` : ''}
     ${cfg.microsoft ? `<div class="card p-signin">${icon('ticket', 30)}<div class="grow"><h3>Ingrese con su cuenta de la empresa</h3>
       <p class="muted">Vea todos sus tickets, las respuestas de la mesa de ayuda y el avance de cada pedido.</p></div>
-      <a class="btn primary p-ms-btn" href="${MS_START}">${MS_LOGO} Ingresar con Microsoft</a></div>` : ''}
+      <a class="btn primary p-ms-btn" href="${msStart()}">${MS_LOGO} Ingresar con Microsoft</a></div>` : ''}
     ${nums.length ? `<h4>Tickets creados desde este navegador</h4><div class="p-list">${nums.map((n) => `<a href="#/ticket/${encodeURIComponent(local[n])}"><span>${icon('ticket', 15)} Ticket #${esc(n)}</span><span class="muted">${icon('right', 15)}</span></a>`).join('')}</div>` : ''}
     ${cfg.magicLink ? `<form class="card" data-login><h3>${cfg.microsoft ? '¿No puede ingresar con Microsoft?' : 'Ver todos mis tickets'}</h3>
       <p class="muted">Le enviamos un enlace de acceso a su correo.</p>

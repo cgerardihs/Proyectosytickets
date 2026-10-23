@@ -136,3 +136,12 @@
   .p-status-row, .p-status-ok { padding-left: 16px; padding-right: 16px; }
   .p-status-detail { padding-left: 0; }
 }
+/* v1.12: ingreso obligatorio con Microsoft */
+.p-gate { min-height: 60vh; display: grid; place-items: center; padding: 20px 0; }
+.p-gate-card { width: 100%; max-width: 440px; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 32px 28px; text-align: center; display: grid; gap: 14px; justify-items: center; }
+.p-gate-logo img { width: 56px; height: auto; }
+.p-gate-card h1 { font-size: 22px; margin: 0; }
+.p-gate-card > p { margin: 0; }
+.p-gate-card .callout { text-align: left; margin: 0; width: 100%; }
+.p-gate-btn { width: 100%; justify-content: center; height: 44px; font-size: 15px; }
+.callout.warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }

@@ -26,6 +26,7 @@ let tA; let tB; let tC;
 
 test('preparación', async () => {
   ok(await admin.post('/setup', { preset: 'hanseatica', admin: { name: 'Carlos Gerardi', email: 'cgerardi@hanseatica.com', password: 'Sol-de-Mayo-2026' }, demo: false }));
+  await admin.put('/admin/settings/helpdesk', { portal_access: 'open' }); // estas pruebas usan el portal abierto (de fábrica es solo con Microsoft)
   tA = (await anon.post('/portal/tickets', { name: 'Ana Ruiz', email: 'aruiz@hanseatica.com', subject: 'No anda la VPN', body_text: 'Desde ayer' })).data;
   tB = (await anon.post('/portal/tickets', { name: 'Bruno Paz', email: 'bpaz@hanseatica.com', subject: 'Sueldo de marzo', body_text: 'Privado' })).data;
   tC = (await anon.post('/portal/tickets', { name: 'Ana Ruiz', email: 'ana.ruiz@hanseatica.com', subject: 'Impresora', body_text: 'Con el otro correo' })).data;
@@ -176,7 +177,7 @@ test('ingreso con Microsoft desde el portal: misma app y redirect URI; se puede 
   // Si la vuelta falla, vuelve al portal (no a la pantalla de ingreso de agentes)
   const back = await makeClient().get(`/auth/ms/callback?state=${encodeURIComponent(loc.searchParams.get('state'))}&code=x`);
   assert.equal(back.status, 302);
-  assert.match(back.headers.location, /^\/portal#\/mis-tickets\?error=/);
+  assert.match(back.headers.location, /^\/portal#\/ingresar\?error=/);
   ok(await admin.put('/admin/settings/helpdesk', { portal_microsoft: false }));
   assert.equal((await anon.get('/portal/config')).data.microsoft, false);
   assert.equal((await anon.get('/auth/ms/start?portal=1')).status, 400);

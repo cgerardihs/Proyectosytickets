@@ -15,6 +15,7 @@ const SECTIONS = [
   ['aging', 'Alertas de antigüedad', 'clock'],
   ['ai', 'Inteligencia artificial', 'sparkles'],
   ['m365', 'Microsoft 365', 'layers'],
+  ['portal', 'Portal', 'globe'],
   ['dev', 'Proyectos y portfolio', 'projects'],
   ['portfolio', 'Origen, sector IT y horas', 'list'],
   ['critical', 'Sistemas críticos', 'pulse'],
@@ -92,10 +93,8 @@ async function general(body) {
       <label class="field"><span>Correo de soporte (respuestas vuelven acá)</span><input class="input" name="support_email" type="email" value="${esc(hd.support_email || '')}"></label>
       <label class="field"><span>Zona horaria</span><input class="input" name="timezone" value="${esc(hd.timezone || 'America/Argentina/Buenos_Aires')}"></label>
       <label class="field"><span>Cerrar automáticamente resueltos después de (días, 0 = nunca)</span><input class="input" type="number" min="0" name="auto_close_days" value="${hd.auto_close_days ?? 7}"></label>
-      <label class="field"><span>Título del portal</span><input class="input" name="portal_title" value="${esc(hd.portal_title || 'Centro de ayuda')}"></label>
     </div>
-    <label class="check"><input type="checkbox" name="portal_enabled" ${hd.portal_enabled !== false ? 'checked' : ''}> Portal de soporte habilitado</label>
-    <label class="check"><input type="checkbox" name="portal_microsoft" ${hd.portal_microsoft !== false ? 'checked' : ''}> Ingreso con Microsoft en el portal <small class="muted">— cada empleado ve solo sus tickets (usa la app de Microsoft 365 ya configurada)</small></label>
+    <p class="hint">El portal de autoservicio (acceso con Microsoft y qué se muestra) se configura en <a href="#/settings/portal">Portal</a>.</p>
     <label class="check"><input type="checkbox" name="notify_contact_on_create" ${hd.notify_contact_on_create !== false ? 'checked' : ''}> Avisar al contacto cuando se crea su ticket</label>
     <label class="check"><input type="checkbox" name="notify_contact_on_resolve" ${hd.notify_contact_on_resolve !== false ? 'checked' : ''}> Avisar al contacto cuando se resuelve</label>
     <label class="check"><input type="checkbox" name="notify_agent_on_assign" ${hd.notify_agent_on_assign !== false ? 'checked' : ''}> Enviar correo al agente cuando se le asigna un ticket</label>
@@ -162,7 +161,7 @@ async function general(body) {
           method: 'PUT',
           body: {
             support_email: f.support_email.value.trim(), timezone: f.timezone.value.trim(), auto_close_days: Number(f.auto_close_days.value) || 0,
-            portal_title: f.portal_title.value, portal_enabled: f.portal_enabled.checked, portal_microsoft: f.portal_microsoft.checked, notify_contact_on_create: f.notify_contact_on_create.checked,
+            notify_contact_on_create: f.notify_contact_on_create.checked,
             notify_contact_on_resolve: f.notify_contact_on_resolve.checked, notify_agent_on_assign: f.notify_agent_on_assign.checked,
             business: { days: [...f.querySelectorAll('[name=day]:checked')].map((x) => Number(x.value)), start: f.start.value, end: f.end.value },
             holidays: f.holidays.value.split(/\s+/).map((x) => x.trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)),
@@ -926,6 +925,54 @@ async function portfolioLists(body) {
   });
 }
 
+// ---------- Portal (v1.12): acceso y partes que se muestran ----------
+async function portalSettings(body) {
+  const [hd, m365] = await Promise.all([api('/admin/settings/helpdesk'), api('/admin/m365').catch(() => null)]);
+  const msOk = Boolean(m365?.config?.effective?.connected);
+  const access = hd.portal_access === 'open' ? 'open' : 'microsoft';
+  const PARTS = [
+    ['portal_show_kb', 'Buscador y artículos', 'El buscador del inicio, las categorías y las guías publicadas de la base de conocimiento.'],
+    ['critical_portal', 'Estado de los sistemas críticos', 'Qué sistemas tienen problemas y la hora estimada de resolución (Configuración → Sistemas críticos).'],
+    ['portal_show_lookup', 'Consultar un ticket', 'Ver el estado y la conversación de un ticket por su número.'],
+    ['portal_show_create', 'Crear tickets', 'El formulario para pedir ayuda (incluye las sugerencias de la IA y el aviso de sistemas caídos).'],
+    ['portal_show_my_tickets', 'Mis tickets', 'El listado de los tickets propios, con filtros y búsqueda.'],
+  ];
+  body.innerHTML = `<form class="card" data-form="portal-cfg">
+    <div class="sec-head"><h3>${icon('globe', 16)} Portal de autoservicio</h3><a class="btn sm" href="/portal" target="_blank" rel="noopener">${icon('external', 13)} Abrir el portal</a></div>
+    <label class="check"><input type="checkbox" name="portal_enabled" ${hd.portal_enabled !== false ? 'checked' : ''}> <b>Mostrar el portal</b> <small class="muted">— apagado, el portal muestra "no disponible" y no responde nada</small></label>
+    <label class="field" style="max-width:420px;margin-top:8px"><span>Título del portal</span><input class="input" name="portal_title" maxlength="120" value="${esc(hd.portal_title || 'Centro de ayuda')}"></label>
+    <h4>Acceso</h4>
+    <div class="portal-access">
+      <label class="check"><input type="radio" name="portal_access" value="microsoft" ${access === 'microsoft' ? 'checked' : ''}> <span><b>Solo con la cuenta de Microsoft de la empresa</b> <span class="badge" style="--c:var(--ok)">Recomendado</span><small class="hint block">Nadie ve nada sin ingresar. Cada persona ve solo sus tickets; las cuentas invitadas no entran. Los enlaces "Ver el ticket" de los correos piden ingresar primero.</small></span></label>
+      <label class="check"><input type="radio" name="portal_access" value="open" ${access === 'open' ? 'checked' : ''}> <span><b>Abierto</b><small class="hint block">Cualquiera con el enlace puede crear tickets y consultar con número y correo; ingresar con Microsoft es opcional.</small></span></label>
+      <label class="check sub" ${access === 'open' ? '' : 'hidden'}><input type="checkbox" name="portal_microsoft" ${hd.portal_microsoft !== false ? 'checked' : ''}> Ofrecer "Ingresar con Microsoft" en el portal abierto</label>
+    </div>
+    ${msOk ? '' : `<p class="callout warn">${icon('alert', 15)} <span>Microsoft 365 todavía no está conectado (<a href="#/settings/m365">configurar</a>). ${access === 'microsoft' ? 'Hasta que lo esté, <b>nadie va a poder entrar al portal</b>: verán un aviso con el correo de soporte.' : ''}</span></p>`}
+    <h4>Qué se muestra</h4>
+    <div class="portal-parts">${PARTS.map(([k, label, hint]) => `<label class="check"><input type="checkbox" name="${k}" ${hd[k] !== false ? 'checked' : ''}> <span><b>${label}</b><small class="hint block">${hint}</small></span></label>`).join('')}</div>
+    <p class="hint">Ver y responder un ticket propio (el enlace del correo) siempre funciona mientras el portal esté encendido.</p>
+    <button class="btn primary">Guardar</button>
+  </form>`;
+  const f = body.querySelector('form');
+  f.querySelectorAll('[name=portal_access]').forEach((r) => r.addEventListener('change', () => { f.querySelector('.check.sub').hidden = f.querySelector('[name=portal_access]:checked').value !== 'open'; }));
+  f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const b = {
+        portal_enabled: f.portal_enabled.checked,
+        portal_title: f.querySelector('[name=portal_title]').value.trim() || 'Centro de ayuda',
+        portal_access: f.querySelector('[name=portal_access]:checked').value,
+        portal_microsoft: f.portal_microsoft.checked,
+      };
+      for (const [k] of PARTS) b[k] = f[k].checked;
+      await api('/admin/settings/helpdesk', { method: 'PUT', body: b });
+      await refreshMeta();
+      toast('Portal guardado');
+      reloadSection();
+    } catch (er) { toastError(er); }
+  });
+}
+
 // ---------- Sistemas críticos (v1.11) ----------
 async function criticalSystems(body) {
   const [list, hd] = await Promise.all([api('/admin/critical-systems'), api('/admin/settings/helpdesk')]);
@@ -956,7 +1003,7 @@ async function criticalSystems(body) {
     </div>
     <form class="card" data-crit-opts>
       <h3>Opciones</h3>
-      ${opt('critical_portal', true, 'Mostrar el estado de los sistemas en el inicio del portal')}
+      <p class="hint" style="margin-top:-4px">Si el estado se muestra o no en el portal se elige en <a href="#/settings/portal">Configuración → Portal</a>.</p>
       ${opt('critical_ticket_warning', true, 'Al crear un ticket en el portal, avisar si el sistema tiene un problema informado', '(evita tickets repetidos)')}
       ${opt('critical_late_notify', true, 'Cuando vence la hora estimada, avisarle a quien lo informó', '(el portal muestra "Demorado")')}
       ${opt('critical_resolve_tickets', true, 'Al marcar resuelto, ofrecer responder y resolver los tickets relacionados', '(tildado de fábrica en el aviso)')}
@@ -998,7 +1045,7 @@ async function criticalSystems(body) {
         reloadSection();
       }
       if (f.matches('[data-crit-opts]')) {
-        const keys = ['critical_portal', 'critical_ticket_warning', 'critical_late_notify', 'critical_resolve_tickets', 'critical_managers_only'];
+        const keys = ['critical_ticket_warning', 'critical_late_notify', 'critical_resolve_tickets', 'critical_managers_only'];
         await api('/admin/settings/helpdesk', { method: 'PUT', body: Object.fromEntries(keys.map((k) => [k, f[k].checked])) });
         toast('Opciones guardadas');
       }
@@ -1006,4 +1053,4 @@ async function criticalSystems(body) {
   });
 }
 
-const RENDER = { general, agents, fields, sla, rules, canned, channels, superadmin, database: dbAdmin, dev, portfolio: portfolioLists, critical: criticalSystems, aging, ai, m365, import: importData };
+const RENDER = { general, agents, fields, sla, rules, canned, channels, superadmin, database: dbAdmin, dev, portfolio: portfolioLists, critical: criticalSystems, portal: portalSettings, aging, ai, m365, import: importData };

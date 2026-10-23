@@ -80,6 +80,11 @@ Veredicto y cambios, punto por punto:
 - `GET /api/portal/status` es público y devuelve solo nombre, descripción, estado, hora estimada, mensaje y desde cuándo de los sistemas marcados como públicos (nunca quién lo informó ni los tickets). Con el portal apagado o la opción desactivada no devuelve nada.
 - Informar o resolver requiere sesión de agente (opcionalmente solo supervisores y administradores); la configuración, administrador. Al resolver con respuesta a los tickets relacionados, los correos cuentan para el tope de envíos por hora del agente (hasta 100 tickets por vez).
 
+## v1.12: portal cerrado
+- Acceso al portal solo con sesión de Microsoft (de fábrica; `portal_access`). Todas las rutas `/api/portal/*` pasan por `portalGate`: portal encendido, sesión si el acceso la exige (401) y la parte habilitada (403). `/portal/config` sin sesión devuelve solo marca y título.
+- En ese modo los enlaces del correo (`pt`) solo sirven junto con la sesión de la persona dueña del ticket; los enlaces "mis tickets" por correo (`pc`) y la consulta con correo quedan deshabilitados.
+- El regreso después de ingresar (`next`) solo acepta rutas internas del portal (`#/…`, caracteres acotados).
+
 ## Al publicar
 1. Variables nuevas u obligatorias en Vercel: `SESSION_SECRET` (32+ caracteres), `SETUP_KEY`, `APP_URL` (dominio definitivo, necesario para passkeys y Microsoft).
 2. `DATABASE_URL`: preferí la cadena *pooled* de Neon (host con `-pooler`).

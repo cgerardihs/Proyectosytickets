@@ -62,6 +62,7 @@ globalThis.fetch = async (url, opts = {}) => {
 let meta;
 test('instalación con reglas de IA de ejemplo', async () => {
   let r = await admin.post('/setup', { preset: 'hanseatica', admin: { name: 'Carlos Gerardi', email: 'cgerardi@hanseatica.com', password: 'clave-segura-1' }, start_number: 3500, demo: true });
+  await admin.put('/admin/settings/helpdesk', { portal_access: 'open' }); // estas pruebas usan el portal abierto (de fábrica es solo con Microsoft)
   ok(r, 'setup');
   meta = (await admin.get('/meta')).data;
   assert.equal(meta.ai.available, false, 'sin AI_API_KEY la IA no está disponible');

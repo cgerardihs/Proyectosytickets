@@ -14,6 +14,7 @@ test('instalación inicial y login', async () => {
   ok(r);
   assert.equal(r.data.needsSetup, true);
   r = await admin.post('/setup', { preset: 'hanseatica', admin: { name: 'Carlos Gerardi', email: 'cgerardi@hanseatica.com', password: 'clave-segura-1' }, start_number: 3500, demo: true });
+  await admin.put('/admin/settings/helpdesk', { portal_access: 'open' }); // estas pruebas usan el portal abierto (de fábrica es solo con Microsoft)
   ok(r, 'setup');
   r = await admin.post('/setup', { admin: { name: 'X', email: 'x@x.com', password: '12345678' } });
   assert.equal(r.status, 403, 'no se puede reinstalar');

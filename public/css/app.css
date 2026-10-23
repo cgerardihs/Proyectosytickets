@@ -1188,3 +1188,9 @@ img.remote-img { cursor: pointer; }
 }
 @media (max-width: 420px) { .crit-grid { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .crit-head .hide-sm { display: none; } }
+/* v1.12: Configuración → Portal */
+.portal-access, .portal-parts { display: grid; gap: 6px; margin-bottom: 10px; }
+.portal-access .check, .portal-parts .check { align-items: flex-start; margin: 0; padding: 8px 10px; border: 1px solid var(--line-2); border-radius: 8px; }
+.portal-access .check input, .portal-parts .check input { margin-top: 3px; accent-color: var(--brand); }
+.portal-access .check.sub { margin-left: 26px; border-style: dashed; }
+.portal-access .badge { margin-left: 6px; }

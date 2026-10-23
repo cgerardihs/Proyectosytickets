@@ -16,6 +16,7 @@ let agentId;
 
 test('preparación: sistemas en Configuración', async () => {
   ok(await admin.post('/setup', { preset: 'hanseatica', admin: { name: 'Carlos Gerardi', email: 'cgerardi@hanseatica.com', password: 'Sol-de-Mayo-2026' }, demo: false }));
+  await admin.put('/admin/settings/helpdesk', { portal_access: 'open' }); // estas pruebas usan el portal abierto (de fábrica es solo con Microsoft)
   const u = await admin.post('/admin/users', { name: 'Agente Prueba', email: 'agente.prueba@hanseatica.com', password: 'Tango-Sur-Riachuelo-26', role: 'agent' });
   ok(u);
   agentId = u.data.id;

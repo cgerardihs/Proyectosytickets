@@ -14,6 +14,7 @@ const { q, one, tx, onCommit, mapDbError } = await import('../lib/db.js');
 
 test('instalación', async () => {
   const r = await admin.post('/setup', { preset: 'hanseatica', admin: { name: 'Carlos Gerardi', email: 'cgerardi@hanseatica.com', password: 'Sol-de-Mayo-2026' }, start_number: 100 });
+  await admin.put('/admin/settings/helpdesk', { portal_access: 'open' }); // estas pruebas usan el portal abierto (de fábrica es solo con Microsoft)
   ok(r, 'setup');
 });
 
