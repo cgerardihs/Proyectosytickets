@@ -205,11 +205,15 @@ function statusHtml(st) {
 
 /** Al crear un ticket: si el tema o el asunto apuntan a un sistema con un problema informado, se avisa. */
 const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-function knownIssue(st, { subject, text, techId }) {
+function knownIssue(st, { subject, text, techId, skip = [] }) {
   if (!st?.enabled || st.ticket_warning === false) return null;
-  const words = ` ${norm(`${subject} ${text}`).replace(/[^a-z0-9]+/g, ' ')} `;
-  return st.systems.find((x) => x.state !== 'ok' && ((x.tech_category_id && String(x.tech_category_id) === String(techId))
-    || norm(x.name).split(/[^a-z0-9]+/).filter((w) => w.length >= 3).some((w) => words.includes(` ${w} `)))) || null;
+  // Mismas reglas que el servidor: palabras propias del sistema en asunto o texto; sin palabras, el nombre solo en el asunto
+  const words = (x) => ` ${norm(x).replace(/[^a-z0-9ñ]+/g, ' ').trim()} `;
+  const S = words(subject);
+  const B = words(text);
+  const has = (hay, list) => (list || []).some((w) => hay.includes(` ${w} `));
+  return st.systems.find((x) => x.state !== 'ok' && !skip.includes(x.id) && ((x.tech_category_id && String(x.tech_category_id) === String(techId))
+    || has(S, x.words?.subject) || has(B, x.words?.body))) || null;
 }
 
 async function route() {
@@ -374,10 +378,10 @@ function newTicket() {
   }
   // Problema ya informado en un sistema crítico: se avisa antes de crear un ticket repetido
   const known = root.querySelector('[data-known]');
-  let dismissed = null;
+  const dismissed = []; // sistemas que descartó: el ticket no se vincula a esos problemas
   const checkKnown = () => {
-    const sys = knownIssue(statusCache, { subject: f.subject.value, text: f.body_text.value, techId: f.tech_category_id.value });
-    if (!sys || dismissed === sys.id) { known.hidden = true; known.innerHTML = ''; return; }
+    const sys = knownIssue(statusCache, { subject: f.subject.value, text: f.body_text.value, techId: f.tech_category_id.value, skip: dismissed });
+    if (!sys) { known.hidden = true; known.innerHTML = ''; return; }
     known.innerHTML = `${icon('alert', 22)}<div><b>${esc(sys.name)}: ${CRIT[sys.state][0].toLowerCase()}. Ya lo estamos resolviendo.</b>
       <p>${sys.message ? `${esc(sys.message)} ` : ''}Resolución estimada: <b>${critLate(sys) ? 'demorada, estamos actualizando la estimación' : whenLabel(sys.eta)}</b>. No hace falta crear un ticket por esto; si su problema es otro, siga igual.</p>
       <div class="row gap wrap"><button type="button" class="btn sm primary" data-known-ok>Entendido, no crear el ticket</button><button type="button" class="btn sm" data-known-other>Mi problema es otro</button></div></div>`;
@@ -385,7 +389,7 @@ function newTicket() {
     known.querySelector('[data-known-ok]').onclick = () => {
       root.innerHTML = `<div class="p-done">${icon('check', 40)}<h2>Gracias por avisar</h2><p>Ya estamos trabajando en ${esc(sys.name)}. Puede seguir el estado en el inicio del centro de ayuda.</p><p><a class="btn" href="#/">Volver al inicio</a></p></div>`;
     };
-    known.querySelector('[data-known-other]').onclick = () => { dismissed = sys.id; checkKnown(); };
+    known.querySelector('[data-known-other]').onclick = () => { dismissed.push(sys.id); checkKnown(); };
   };
   if (!statusCache) loadStatus().then(checkKnown);
   f.subject.addEventListener('input', checkKnown);
@@ -422,7 +426,7 @@ function newTicket() {
     try {
       const r = await papi('/portal/tickets', {
         name: f.name.value, email: f.email.value, subject: f.subject.value, body_text: f.body_text.value,
-        category_id: f.category_id.value, tech_category_id: f.tech_category_id.value, attachments: files, website: f.website.value, ai_tried: tried,
+        category_id: f.category_id.value, tech_category_id: f.tech_category_id.value, attachments: files, website: f.website.value, ai_tried: tried, critical_dismissed: dismissed,
       }, { key: opKey });
       try { localStorage.setItem('portal-me', JSON.stringify({ name: f.name.value, email: f.email.value })); } catch { /* */ }
       toast(`Recibimos su solicitud: ticket #${r.number}. Le vamos a responder por correo.`);

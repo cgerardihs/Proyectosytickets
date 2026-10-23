@@ -201,6 +201,7 @@ export function ticketCriticalHtml(c) {
     return `<div class="card crit-box linked" style="--c:${STATES[c.state].color}">
       <div class="row gap wrap"><b class="grow">${icon('pulse', 14)} Sistema crítico</b>${critPill(c.state)}</div>
       <p><b>${esc(c.name)}</b>${c.state !== 'ok' && c.eta ? ` · resolución ${isLate(c) ? '<b class="danger-text">vencida</b>' : whenLabel(c.eta)}` : ''}</p>
+      ${c.auto ? '<small class="muted">Vinculado automáticamente al crearse (menciona el sistema). Al usuario le llegó el aviso de problema conocido.</small>' : ''}
       <div class="row gap wrap"><button class="btn sm" data-crit-act="update" data-sys="${c.id}">Actualizar estado</button><button class="link-btn" data-crit-act="unlink">Desvincular</button></div>
     </div>`;
   }

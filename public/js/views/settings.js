@@ -965,19 +965,21 @@ const MAIL_CARDS = [
   ['created', 'Ticket recibido (por correo)', 'Cuando llega un ticket por correo y no hay respuesta automática para ese tema.', 'notify_contact_on_create'],
   ['created_portal', 'Ticket recibido (desde el portal)', 'Cuando la persona crea un ticket en el centro de ayuda.', 'notify_contact_on_create'],
   ['auto_reply', 'Respuesta automática', 'Cuando una regla de Inteligencia artificial encuentra pasos para probar: este texto va alrededor de los pasos ({{sugerencias}}). Usa el asunto de "Ticket recibido".', null],
+  ['known_issue', 'Problema conocido', 'Cuando el ticket nuevo menciona un sistema crítico con un problema informado: va en lugar del "recibido" y de la respuesta automática.', 'notify_contact_on_create'],
   ['resolved', 'Ticket resuelto', 'Cuando un agente pasa el ticket a un estado "Resuelto".', 'notify_contact_on_resolve'],
 ];
 const mailEscape = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function mailPreview(key, tpl, all, sample) {
   const vals = {
     'contacto.nombre': sample.first, 'contacto.nombre_completo': sample.name, 'contacto.area': 'Sistemas', 'ticket.numero': '1234',
-    'ticket.asunto': 'No imprime la impresora del 3er piso', empresa: state.meta.brand?.name || '', mesa: state.meta.brand?.product || 'Mesa de Ayuda',
+    'ticket.asunto': key === 'known_issue' ? 'No puedo entrar al CRM' : 'No imprime la impresora del 3er piso', empresa: state.meta.brand?.name || '', mesa: state.meta.brand?.product || 'Mesa de Ayuda',
+    'sistema.nombre': 'CRM comercial', 'sistema.estado': 'caído', 'sistema.mensaje': 'No se puede ingresar. Estamos trabajando con el proveedor.', 'sistema.resolucion': 'hoy 14:30 hs',
   };
   const fill = (t, esc) => String(t || '').replace(/\{\{\s*([a-z_.]+)\s*\}\}/gi, (m, k) => (Object.hasOwn(vals, k) ? (esc ? mailEscape(vals[k]) : vals[k]) : m));
   const tidy = (x) => x.replace(/\s+,/g, ',').replace(/ {2,}/g, ' ');
   const steps = '<ol><li>Verifique que la impresora esté encendida y con papel.</li><li>Apáguela, espere 30 segundos y vuelva a encenderla.</li></ol>';
   const body = String(tpl.body || '').replace(/\r\n/g, '\n').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => (/^\{\{\s*sugerencias\s*\}\}$/i.test(p) ? steps
-    : `<p>${tidy(fill(mailEscape(p), true)).replace(/\n/g, '<br>').replace(/\{\{\s*sugerencias\s*\}\}/gi, steps)}</p>`)).join('');
+    : `<p>${tidy(fill(mailEscape(p), true)).replace(/\n/g, '<br>').replace(/\{\{\s*sugerencias\s*\}\}/gi, steps)}</p>`)).filter((x) => x !== '<p></p>').join('');
   let subject = tidy(fill(key === 'auto_reply' ? all.created.subject : tpl.subject, false)).replace(/\s+/g, ' ').trim();
   if (!subject.includes('[#1234]')) subject = `[#1234] ${subject}`;
   return `<div class="mail-prev-subj"><small>Asunto</small><b>${mailEscape(subject)}</b></div>
@@ -990,7 +992,7 @@ async function mailTemplatesSettings(body) {
   const cur = JSON.parse(JSON.stringify(data.templates));
   const first = (state.me.name || '').split(' ')[0];
   const sample = { first, name: state.me.name || '' };
-  const varsHtml = (key) => Object.entries(data.vars).filter(([k]) => k !== 'sugerencias' || key === 'auto_reply')
+  const varsHtml = (key) => Object.entries(data.vars).filter(([k]) => (k !== 'sugerencias' || key === 'auto_reply') && (!k.startsWith('sistema.') || key === 'known_issue'))
     .map(([k, d]) => `<button type="button" class="chip mail-var" data-var="${k}" title="${esc(d)}">{{${k}}}</button>`).join('');
   body.innerHTML = `<div class="card">
       <h3>${icon('mail', 16)} Correos a los usuarios</h3>
@@ -1128,18 +1130,19 @@ async function criticalSystems(body) {
   const opt = (key, def, label, hint = '') => `<label class="check"><input type="checkbox" name="${key}" ${(def ? hd[key] !== false : hd[key] === true) ? 'checked' : ''}> <span>${label}${hint ? ` <small class="muted">${hint}</small>` : ''}</span></label>`;
   body.innerHTML = `<div class="card">
       <h3>${icon('pulse', 16)} Sistemas críticos</h3>
-      <p class="hint" style="margin-top:-4px">Aparecen arriba de todo en el Inicio de los agentes. Cuando un sistema falla, cualquier agente lo marca (caído, degradado o en mantenimiento) con la hora estimada de resolución, y si es <b>público</b> se ve en el estado de sistemas del portal. El <b>tema</b> sirve para avisarle al usuario que ya está informado cuando elige ese tema al crear un ticket.</p>
-      <div class="table-wrap"><table class="tbl compact edit-tbl crit-tbl"><thead><tr><th>Sistema</th><th>Descripción (se ve en el portal)</th><th>Tema del ticket</th><th>Público</th><th>Activo</th><th>Orden</th><th>Estado</th><th></th></tr></thead><tbody>
+      <p class="hint" style="margin-top:-4px">Aparecen arriba de todo en el Inicio de los agentes. Cuando un sistema falla, cualquier agente lo marca (caído, degradado o en mantenimiento) con la hora estimada de resolución, y si es <b>público</b> se ve en el estado de sistemas del portal. Un ticket nuevo (por correo o portal) que menciona el sistema con un problema informado se <b>vincula solo</b> y el usuario recibe el aviso de "problema conocido" con la hora estimada: se reconoce por las <b>palabras</b> (en el asunto o el texto; si no cargás palabras, por el nombre y solo en el asunto) o por el <b>tema del ticket</b>.</p>
+      <div class="table-wrap"><table class="tbl compact edit-tbl crit-tbl"><thead><tr><th>Sistema</th><th>Descripción (se ve en el portal)</th><th>Palabras para reconocerlo</th><th>Tema del ticket</th><th>Público</th><th>Activo</th><th>Orden</th><th>Estado</th><th></th></tr></thead><tbody>
       ${list.map((x) => `<tr data-id="${x.id}" class="${x.active ? '' : 'inactive'}">
         <td><input class="input sm" name="name" value="${esc(x.name)}" maxlength="80" aria-label="Nombre"></td>
         <td><input class="input sm" name="description" value="${esc(x.description || '')}" maxlength="200" aria-label="Descripción"></td>
+        <td><input class="input sm" name="keywords" value="${esc((x.keywords || []).join(', '))}" maxlength="400" placeholder="separadas por coma" aria-label="Palabras para reconocerlo"></td>
         <td><select class="input sm" name="tech_category_id" aria-label="Tema"><option value="">—</option>${techs.map((t) => `<option value="${t.id}" ${t.id === x.tech_category_id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></td>
         <td><input type="checkbox" name="public" ${x.public ? 'checked' : ''} aria-label="Público"></td>
         <td><input type="checkbox" name="active" ${x.active ? 'checked' : ''} aria-label="Activo"></td>
         <td><input class="input sm" type="number" min="0" name="sort" value="${x.sort}" style="width:64px" aria-label="Orden"></td>
         <td><span class="crit-pill" style="--c:${STATE[x.state][1]}"><i class="crit-dot"></i>${STATE[x.state][0]}</span></td>
         <td class="row nowrap"><button class="btn sm" data-crit-save>Guardar</button><button class="icon-btn sm" data-crit-del title="Eliminar">${icon('trash', 13)}</button></td></tr>`).join('')
-        || '<tr><td colspan="8" class="muted small">Todavía no hay sistemas. Agregá los que usa la empresa: CRM, Equis, correo, VPN…</td></tr>'}
+        || '<tr><td colspan="9" class="muted small">Todavía no hay sistemas. Agregá los que usa la empresa: CRM, Equis, correo, VPN…</td></tr>'}
       </tbody></table></div>
       <form class="row gap wrap crit-add" data-crit-add>
         <input class="input sm grow" name="name" maxlength="80" placeholder="Nombre (ej. CRM comercial)" required>
@@ -1151,6 +1154,7 @@ async function criticalSystems(body) {
     <form class="card" data-crit-opts>
       <h3>Opciones</h3>
       <p class="hint" style="margin-top:-4px">Si el estado se muestra o no en el portal se elige en <a href="#/settings/portal">Configuración → Portal</a>.</p>
+      ${opt('critical_auto_link', true, 'Vincular solos los tickets nuevos que mencionan un sistema con problemas y avisarle al usuario', '(correo "Problema conocido" en Correos a los usuarios)')}
       ${opt('critical_ticket_warning', true, 'Al crear un ticket en el portal, avisar si el sistema tiene un problema informado', '(evita tickets repetidos)')}
       ${opt('critical_late_notify', true, 'Cuando vence la hora estimada, avisarle a quien lo informó', '(el portal muestra "Demorado")')}
       ${opt('critical_resolve_tickets', true, 'Al marcar resuelto, ofrecer responder y resolver los tickets relacionados', '(tildado de fábrica en el aviso)')}
@@ -1161,6 +1165,7 @@ async function criticalSystems(body) {
     name: tr.querySelector('[name=name]').value.trim(),
     description: tr.querySelector('[name=description]').value.trim(),
     tech_category_id: Number(tr.querySelector('[name=tech_category_id]').value) || null,
+    keywords: [...new Set(tr.querySelector('[name=keywords]').value.split(/[,;]/).map((k) => k.trim()).filter(Boolean))].slice(0, 20),
     public: tr.querySelector('[name=public]').checked,
     active: tr.querySelector('[name=active]').checked,
     sort: Math.max(0, Math.round(Number(tr.querySelector('[name=sort]').value) || 0)),
@@ -1192,7 +1197,7 @@ async function criticalSystems(body) {
         reloadSection();
       }
       if (f.matches('[data-crit-opts]')) {
-        const keys = ['critical_ticket_warning', 'critical_late_notify', 'critical_resolve_tickets', 'critical_managers_only'];
+        const keys = ['critical_auto_link', 'critical_ticket_warning', 'critical_late_notify', 'critical_resolve_tickets', 'critical_managers_only'];
         await api('/admin/settings/helpdesk', { method: 'PUT', body: Object.fromEntries(keys.map((k) => [k, f[k].checked])) });
         toast('Opciones guardadas');
       }

@@ -249,7 +249,7 @@ export async function render(el, [num]) {
       }
       if (a.action === 'merged') extra = `<li>En <a href="#/tickets/${a.details.into}">#${a.details.into}</a></li>`;
       if (a.action === 'merged_from') extra = `<li>Desde #${a.details.from}</li>`;
-      if (a.action === 'critical_linked' || a.action === 'critical_unlinked') extra = `<li>${esc(a.details.system || '')}</li>`;
+      if (a.action === 'critical_linked' || a.action === 'critical_unlinked') extra = `<li>${esc(a.details.system || '')}${a.details.auto ? ' · automático: el ticket menciona el sistema' : ''}</li>`;
       if (a.action === 'dev_rule') {
         const ev = { convert: 'al convertir', start: 'arrancó el desarrollo', phase: 'cambio de fase', finish: 'terminó el desarrollo', issues_done: 'se finalizaron las tareas vinculadas' };
         extra = `<li>${esc(String(a.details.event || '').split(',').map((x) => ev[x] || x).join(' · '))}${a.details.issues?.length ? ` (${a.details.issues.map((k) => `<a href="#/issue/${esc(k)}">${esc(k)}</a>`).join(', ')})` : ''}${a.details.phase ? ` → fase <b>${esc(a.details.phase)}</b>` : ''}${a.details.status ? ` · estado <b>${esc(a.details.status)}</b>` : ' · estado sin cambio'}</li>`;
