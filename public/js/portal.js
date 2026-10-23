@@ -332,6 +332,8 @@ function newTicket() {
     </form>`;
   const f = root.querySelector('[data-new]');
   const submitBtn = f.querySelector('button:not([type=button])');
+  // Área de quien ingresó (según su contacto o el directorio): queda elegida, se puede cambiar
+  if (cfg.my_category_id && [...f.category_id.options].some((o) => o.value === String(cfg.my_category_id))) f.category_id.value = String(cfg.my_category_id);
   if (cfg.me) {
     // Con sesión de Microsoft el ticket queda a nombre de la cuenta
     f.name.value = cfg.me.name || '';

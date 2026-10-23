@@ -298,6 +298,7 @@ async function fields(body) {
     </tbody></table><button class="btn sm" data-add="statuses">${icon('plus', 13)} Agregar estado</button>
   </div>
   ${simpleTable(labelTitle('category'), 'categories', cats)}
+  <div class="area-map-slot"></div>
   ${simpleTable(labelTitle('type'), 'types', types)}
   <div class="card">
     <h3>${labelTitle('tech')}</h3>
@@ -374,13 +375,47 @@ async function fields(body) {
       reloadSection();
     } catch (er) { toastError(er); }
   });
+  loadAreaMapping(body.querySelector('.area-map-slot'), cats);
   wireEditTables(body);
+}
+
+/** Áreas de contactos que no coinciden con ninguna área solicitante: se asignan a una existente o se crean. */
+async function loadAreaMapping(slot, cats) {
+  if (!slot) return;
+  let data;
+  try { data = await api('/admin/area-mapping'); } catch { return; }
+  if (data.filled) toast(`Se completó el ${fieldLabel('category').toLowerCase()} de ${data.filled} ticket${data.filled === 1 ? '' : 's'} con el área de su contacto`);
+  if (!data.unmatched.length) { slot.innerHTML = ''; return; }
+  slot.innerHTML = `<div class="card callout-card">
+    <h3>${icon('alert', 16)} Áreas de contactos sin ${esc(fieldLabel('category').toLowerCase())}</h3>
+    <p class="hint">Estas áreas figuran en los contactos (cargadas a mano o desde el directorio de Microsoft 365) pero no coinciden con ninguna de la lista, así que sus tickets quedan sin ${esc(fieldLabel('category').toLowerCase())}. Asignalas a una existente (se guarda como "otro nombre") o creala como área nueva. Al hacerlo se completan los tickets que no la tienen.</p>
+    <div class="table-wrap"><table class="tbl compact"><thead><tr><th>Área del contacto</th><th class="num">Contactos</th><th class="num">Tickets sin área</th><th>Corresponde a</th><th></th></tr></thead><tbody>
+    ${data.unmatched.map((a) => `<tr data-area="${esc(a.area)}"><td><b>${esc(a.area)}</b></td><td class="num">${a.contacts}</td><td class="num">${a.tickets}</td>
+      <td><select class="input sm" name="map_cat"><option value="">Elegí…</option>${cats.filter((c) => c.active).map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></td>
+      <td class="row nowrap"><button class="btn sm primary" data-area-map>Asignar</button><button class="btn sm" data-area-new>Crear "${esc(a.area)}"</button></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  slot.addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr[data-area]');
+    if (!tr) return;
+    const isNew = e.target.closest('[data-area-new]');
+    if (!isNew && !e.target.closest('[data-area-map]')) return;
+    const category = Number(tr.querySelector('[name=map_cat]').value) || null;
+    if (!isNew && !category) return toast('Elegí a qué área corresponde', 'error');
+    try {
+      const r = await api('/admin/area-mapping', { method: 'POST', body: { area: tr.dataset.area, category_id: category, create: Boolean(isNew) } });
+      await refreshMeta();
+      toast(`Listo${r.filled ? ` · ${r.filled} ticket${r.filled === 1 ? '' : 's'} completado${r.filled === 1 ? '' : 's'}` : ''}`);
+      reloadSection();
+    } catch (er) { toastError(er); }
+  }, { once: false });
 }
 
 function simpleTable(title, table, rows) {
   return `<div class="card"><h3>${title}</h3>
-    <table class="tbl compact edit-tbl" data-table="${table}"><thead><tr><th>Nombre</th>${table === 'categories' ? '<th>Descripción</th>' : ''}<th>Activo</th><th>Orden</th><th></th></tr></thead><tbody>
-    ${rows.map((r) => `<tr data-id="${r.id}"><td><input class="input sm" name="name" value="${esc(r.name)}"></td>${table === 'categories' ? `<td><input class="input sm" name="description" value="${esc(r.description || '')}"></td>` : ''}
+    ${table === 'categories' ? '<p class="hint">Al crear un ticket se completa solo con el área del contacto (la de su ficha o la del directorio de Microsoft 365) cuando coincide con el nombre, la descripción o alguno de los <b>otros nombres</b> (separados por coma), sin importar mayúsculas ni tildes.</p>' : ''}
+    <table class="tbl compact edit-tbl" data-table="${table}"><thead><tr><th>Nombre</th>${table === 'categories' ? '<th>Descripción</th><th>Otros nombres (directorio)</th>' : ''}<th>Activo</th><th>Orden</th><th></th></tr></thead><tbody>
+    ${rows.map((r) => `<tr data-id="${r.id}"><td><input class="input sm" name="name" value="${esc(r.name)}"></td>${table === 'categories' ? `<td><input class="input sm" name="description" value="${esc(r.description || '')}"></td>
+      <td><input class="input sm" name="aliases" data-list value="${esc((r.aliases || []).join(', '))}" placeholder="separados por coma"></td>` : ''}
       <td><input type="checkbox" name="active" ${r.active ? 'checked' : ''}></td><td><input class="input sm" type="number" name="sort" value="${r.sort}" style="width:64px"></td>
       <td class="row"><button class="btn sm" data-save>Guardar</button><button class="icon-btn sm" data-del title="Eliminar">${icon('trash', 13)}</button></td></tr>`).join('')}
     </tbody></table><button class="btn sm" data-add="${table}">${icon('plus', 13)} Agregar</button></div>`;
@@ -389,7 +424,8 @@ function simpleTable(title, table, rows) {
 function rowValues(tr) {
   const out = {};
   tr.querySelectorAll('[name]').forEach((i) => {
-    if (i.type === 'checkbox' || i.type === 'radio') out[i.name] = i.checked;
+    if (i.dataset.list !== undefined) out[i.name] = [...new Set(i.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean))].slice(0, 50);
+    else if (i.type === 'checkbox' || i.type === 'radio') out[i.name] = i.checked;
     else if (i.type === 'number') out[i.name] = Number(i.value);
     else out[i.name] = i.value;
   });
@@ -408,7 +444,7 @@ function wireEditTables(body) {
         await api(`/admin/${table}/${tr.dataset.id}`, { method: 'PATCH', body: rowValues(tr) });
         await refreshMeta();
         toast('Guardado');
-        if (table === 'statuses') reloadSection();
+        if (table === 'statuses' || table === 'categories') reloadSection();
       }
       if (del) {
         const tr = del.closest('tr');
