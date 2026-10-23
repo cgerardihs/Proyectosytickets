@@ -1194,3 +1194,18 @@ img.remote-img { cursor: pointer; }
 .portal-access .check input, .portal-parts .check input { margin-top: 3px; accent-color: var(--brand); }
 .portal-access .check.sub { margin-left: 26px; border-style: dashed; }
 .portal-access .badge { margin-left: 6px; }
+/* v1.13: Configuración → Correos a los usuarios */
+.mail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.mail-edit textarea { font-family: inherit; line-height: 1.5; }
+.mail-vars { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 10px; }
+.mail-var { cursor: pointer; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; border: 1px solid var(--line); background: var(--panel-2); }
+.mail-var:hover { border-color: var(--brand); color: var(--brand); }
+.mail-prev { background: #f4f5f7; border: 1px solid var(--line-2); border-radius: 10px; padding: 12px; min-width: 0; }
+.mail-prev-subj { display: grid; gap: 2px; margin-bottom: 10px; font-size: 13px; overflow-wrap: anywhere; }
+.mail-prev-subj small { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+.mail-prev-body { background: #fff; border-top: 4px solid var(--brand); border-radius: 8px; padding: 16px 18px; font-size: 13.5px; line-height: 1.55; color: #1f2937; overflow-wrap: anywhere; }
+.mail-prev-body p { margin: 0 0 10px; }
+.mail-prev-body ol { margin: 0 0 10px; padding-left: 20px; }
+.mail-prev-btn { display: inline-block; background: #1f2937; color: #fff; padding: 7px 13px; border-radius: 6px; font-size: 12.5px; }
+.mail-prev-foot { font-size: 11.5px; color: #6b7280; }
+@media (max-width: 900px) { .mail-grid { grid-template-columns: 1fr; } }

@@ -20,6 +20,7 @@ const SECTIONS = [
   ['portfolio', 'Origen, sector IT y horas', 'list'],
   ['critical', 'Sistemas críticos', 'pulse'],
   ['canned', 'Respuestas predefinidas', 'sparkles'],
+  ['mails', 'Correos a los usuarios', 'mail'],
   ['channels', 'Correo e integraciones', 'mail'],
   ['import', 'Importar datos', 'upload'],
   ['superadmin', 'Superadmin', 'shield'],
@@ -95,8 +96,7 @@ async function general(body) {
       <label class="field"><span>Cerrar automáticamente resueltos después de (días, 0 = nunca)</span><input class="input" type="number" min="0" name="auto_close_days" value="${hd.auto_close_days ?? 7}"></label>
     </div>
     <p class="hint">El portal de autoservicio (acceso con Microsoft y qué se muestra) se configura en <a href="#/settings/portal">Portal</a>.</p>
-    <label class="check"><input type="checkbox" name="notify_contact_on_create" ${hd.notify_contact_on_create !== false ? 'checked' : ''}> Avisar al contacto cuando se crea su ticket</label>
-    <label class="check"><input type="checkbox" name="notify_contact_on_resolve" ${hd.notify_contact_on_resolve !== false ? 'checked' : ''}> Avisar al contacto cuando se resuelve</label>
+    <p class="hint">Los correos al solicitante (ticket recibido, resuelto y la respuesta automática) se prenden y se redactan en <a href="#/settings/mails">Correos a los usuarios</a>.</p>
     <label class="check"><input type="checkbox" name="notify_agent_on_assign" ${hd.notify_agent_on_assign !== false ? 'checked' : ''}> Enviar correo al agente cuando se le asigna un ticket</label>
     <h4>Horario laboral (para SLA)</h4>
     <div class="row gap wrap">${days.map((d, i) => `<label class="check"><input type="checkbox" name="day" value="${i}" ${(hd.business?.days || [1, 2, 3, 4, 5]).includes(i) ? 'checked' : ''}> ${d}</label>`).join('')}</div>
@@ -161,8 +161,7 @@ async function general(body) {
           method: 'PUT',
           body: {
             support_email: f.support_email.value.trim(), timezone: f.timezone.value.trim(), auto_close_days: Number(f.auto_close_days.value) || 0,
-            notify_contact_on_create: f.notify_contact_on_create.checked,
-            notify_contact_on_resolve: f.notify_contact_on_resolve.checked, notify_agent_on_assign: f.notify_agent_on_assign.checked,
+            notify_agent_on_assign: f.notify_agent_on_assign.checked,
             business: { days: [...f.querySelectorAll('[name=day]:checked')].map((x) => Number(x.value)), start: f.start.value, end: f.end.value },
             holidays: f.holidays.value.split(/\s+/).map((x) => x.trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)),
           },
@@ -961,6 +960,118 @@ async function portfolioLists(body) {
   });
 }
 
+// ---------- Correos a los usuarios (v1.13) ----------
+const MAIL_CARDS = [
+  ['created', 'Ticket recibido (por correo)', 'Cuando llega un ticket por correo y no hay respuesta automática para ese tema.', 'notify_contact_on_create'],
+  ['created_portal', 'Ticket recibido (desde el portal)', 'Cuando la persona crea un ticket en el centro de ayuda.', 'notify_contact_on_create'],
+  ['auto_reply', 'Respuesta automática', 'Cuando una regla de Inteligencia artificial encuentra pasos para probar: este texto va alrededor de los pasos ({{sugerencias}}). Usa el asunto de "Ticket recibido".', null],
+  ['resolved', 'Ticket resuelto', 'Cuando un agente pasa el ticket a un estado "Resuelto".', 'notify_contact_on_resolve'],
+];
+const mailEscape = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function mailPreview(key, tpl, all, sample) {
+  const vals = {
+    'contacto.nombre': sample.first, 'contacto.nombre_completo': sample.name, 'contacto.area': 'Sistemas', 'ticket.numero': '1234',
+    'ticket.asunto': 'No imprime la impresora del 3er piso', empresa: state.meta.brand?.name || '', mesa: state.meta.brand?.product || 'Mesa de Ayuda',
+  };
+  const fill = (t, esc) => String(t || '').replace(/\{\{\s*([a-z_.]+)\s*\}\}/gi, (m, k) => (Object.hasOwn(vals, k) ? (esc ? mailEscape(vals[k]) : vals[k]) : m));
+  const tidy = (x) => x.replace(/\s+,/g, ',').replace(/ {2,}/g, ' ');
+  const steps = '<ol><li>Verifique que la impresora esté encendida y con papel.</li><li>Apáguela, espere 30 segundos y vuelva a encenderla.</li></ol>';
+  const body = String(tpl.body || '').replace(/\r\n/g, '\n').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => (/^\{\{\s*sugerencias\s*\}\}$/i.test(p) ? steps
+    : `<p>${tidy(fill(mailEscape(p), true)).replace(/\n/g, '<br>').replace(/\{\{\s*sugerencias\s*\}\}/gi, steps)}</p>`)).join('');
+  let subject = tidy(fill(key === 'auto_reply' ? all.created.subject : tpl.subject, false)).replace(/\s+/g, ' ').trim();
+  if (!subject.includes('[#1234]')) subject = `[#1234] ${subject}`;
+  return `<div class="mail-prev-subj"><small>Asunto</small><b>${mailEscape(subject)}</b></div>
+    <div class="mail-prev-body" style="--brand:${mailEscape(state.meta.brand?.color || '#C8102E')}">${body}
+      <p><span class="mail-prev-btn">${mailEscape(all.button || 'Ver el ticket')}</span></p>${all.footer ? `<p class="mail-prev-foot">${mailEscape(all.footer)}</p>` : ''}</div>`;
+}
+
+async function mailTemplatesSettings(body) {
+  const [data, hd] = await Promise.all([api('/admin/mail-templates'), api('/admin/settings/helpdesk')]);
+  const cur = JSON.parse(JSON.stringify(data.templates));
+  const first = (state.me.name || '').split(' ')[0];
+  const sample = { first, name: state.me.name || '' };
+  const varsHtml = (key) => Object.entries(data.vars).filter(([k]) => k !== 'sugerencias' || key === 'auto_reply')
+    .map(([k, d]) => `<button type="button" class="chip mail-var" data-var="${k}" title="${esc(d)}">{{${k}}}</button>`).join('');
+  body.innerHTML = `<div class="card">
+      <h3>${icon('mail', 16)} Correos a los usuarios</h3>
+      <p class="hint" style="margin-top:-4px">Los correos que le llegan al solicitante. Escribí en texto simple: una línea en blanco separa párrafos y las <b>variables</b> entre llaves se reemplazan por los datos del ticket (tocá una para agregarla). El asunto siempre lleva <b>[#número]</b> para que las respuestas vuelvan al ticket (si lo sacás, se agrega solo). ${data.mail ? '' : `<span class="warn-text">El envío de correos todavía no está configurado (<a href="#/settings/channels">Correo e integraciones</a>).</span>`}</p>
+      <p class="hint">Las <b>respuestas automáticas</b> (qué pasos se sugieren para cada tema) se configuran en <a href="#/settings/ai">Inteligencia artificial → Reglas de respuesta automática</a>.</p>
+    </div>
+    ${MAIL_CARDS.map(([key, title, when, flag]) => `<section class="card mail-card" data-key="${key}">
+      <div class="sec-head"><div><h3>${esc(title)}</h3><p class="hint" style="margin:2px 0 0">${esc(when)}</p></div>
+        ${flag ? `<label class="check"><input type="checkbox" data-flag="${flag}" ${hd[flag] !== false ? 'checked' : ''}> Enviar</label>` : `<a class="link-btn" href="#/settings/ai">Prender o apagar →</a>`}</div>
+      <div class="mail-grid">
+        <div class="mail-edit">
+          ${key === 'auto_reply' ? '' : `<label class="field"><span>Asunto</span><input class="input" name="subject" maxlength="200" value="${esc(cur[key].subject || '')}"></label>`}
+          <label class="field"><span>Texto</span><textarea class="input" name="body" rows="7" maxlength="4000">${esc(cur[key].body || '')}</textarea></label>
+          <div class="mail-vars">${varsHtml(key)}</div>
+          <div class="row gap wrap"><button type="button" class="btn sm" data-reset>Volver al texto de fábrica</button><button type="button" class="btn sm" data-test ${data.mail ? '' : 'disabled'}>${icon('mail', 13)} Enviarme una prueba</button></div>
+        </div>
+        <div class="mail-prev" aria-label="Vista previa">${mailPreview(key, cur[key], cur, sample)}</div>
+      </div>
+    </section>`).join('')}
+    <section class="card mail-common">
+      <h3>En todos los correos</h3>
+      <div class="grid2">
+        <label class="field"><span>Texto del botón</span><input class="input" name="button" maxlength="40" value="${esc(cur.button)}"></label>
+        <label class="field"><span>Nota al pie (vacío = sin nota)</span><input class="input" name="footer" maxlength="300" value="${esc(cur.footer)}"></label>
+      </div>
+      <button class="btn primary" data-save-mails>Guardar los correos</button>
+    </section>`;
+  let lastField = null;
+  const redraw = (card) => { const k = card.dataset.key; card.querySelector('.mail-prev').innerHTML = mailPreview(k, cur[k], cur, sample); };
+  body.addEventListener('focusin', (e) => { if (e.target.matches('.mail-edit [name]')) lastField = e.target; });
+  body.addEventListener('input', (e) => {
+    const card = e.target.closest('.mail-card');
+    if (card && e.target.name) { cur[card.dataset.key][e.target.name] = e.target.value; redraw(card); }
+    if (e.target.closest('.mail-common')) { cur[e.target.name] = e.target.value; body.querySelectorAll('.mail-card').forEach(redraw); }
+  });
+  body.addEventListener('click', async (e) => {
+    const card = e.target.closest('.mail-card');
+    const v = e.target.closest('[data-var]');
+    if (v && card) {
+      const field = lastField && card.contains(lastField) ? lastField : card.querySelector('[name=body]');
+      const ins = `{{${v.dataset.var}}}`;
+      const at = field.selectionStart ?? field.value.length;
+      field.value = field.value.slice(0, at) + ins + field.value.slice(field.selectionEnd ?? at);
+      field.focus();
+      field.selectionStart = field.selectionEnd = at + ins.length;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (e.target.closest('[data-reset]') && card) {
+      const k = card.dataset.key;
+      cur[k] = { ...data.defaults[k] };
+      if (card.querySelector('[name=subject]')) card.querySelector('[name=subject]').value = cur[k].subject || '';
+      card.querySelector('[name=body]').value = cur[k].body || '';
+      redraw(card);
+    }
+    if (e.target.closest('[data-test]') && card) {
+      const k = card.dataset.key;
+      try {
+        const r = await api('/admin/mail-templates/test', { method: 'POST', body: { key: k, subject: k === 'auto_reply' ? cur.created.subject : cur[k].subject || '', body: cur[k].body || '', button: cur.button, footer: cur.footer } });
+        toast(`Te mandamos una prueba a ${r.to}`);
+      } catch (er) { toastError(er); }
+    }
+    if (e.target.closest('[data-save-mails]')) {
+      const mt = {};
+      for (const [k] of MAIL_CARDS) mt[k] = k === 'auto_reply' ? { body: cur[k].body || '' } : { subject: cur[k].subject || '', body: cur[k].body || '' };
+      mt.button = cur.button || '';
+      mt.footer = cur.footer || '';
+      const flags = {};
+      body.querySelectorAll('[data-flag]').forEach((c) => { flags[c.dataset.flag] = c.checked; });
+      try {
+        await api('/admin/settings/helpdesk', { method: 'PUT', body: { mail_templates: mt, ...flags } });
+        await refreshMeta();
+        toast('Correos guardados');
+      } catch (er) { toastError(er); }
+    }
+  });
+  // Los dos "Ticket recibido" comparten el mismo interruptor
+  body.addEventListener('change', (e) => {
+    if (e.target.dataset.flag) body.querySelectorAll(`[data-flag="${e.target.dataset.flag}"]`).forEach((c) => { c.checked = e.target.checked; });
+  });
+}
+
 // ---------- Portal (v1.12): acceso y partes que se muestran ----------
 async function portalSettings(body) {
   const [hd, m365] = await Promise.all([api('/admin/settings/helpdesk'), api('/admin/m365').catch(() => null)]);
@@ -1089,4 +1200,4 @@ async function criticalSystems(body) {
   });
 }
 
-const RENDER = { general, agents, fields, sla, rules, canned, channels, superadmin, database: dbAdmin, dev, portfolio: portfolioLists, critical: criticalSystems, portal: portalSettings, aging, ai, m365, import: importData };
+const RENDER = { general, agents, fields, sla, rules, canned, channels, superadmin, database: dbAdmin, dev, portfolio: portfolioLists, critical: criticalSystems, portal: portalSettings, mails: mailTemplatesSettings, aging, ai, m365, import: importData };
