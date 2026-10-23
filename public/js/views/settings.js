@@ -968,6 +968,18 @@ const MAIL_CARDS = [
   ['known_issue', 'Problema conocido', 'Cuando el ticket nuevo menciona un sistema crítico con un problema informado: va en lugar del "recibido" y de la respuesta automática.', 'notify_contact_on_create'],
   ['resolved', 'Ticket resuelto', 'Cuando un agente pasa el ticket a un estado "Resuelto".', 'notify_contact_on_resolve'],
 ];
+// Formato simple de los correos (igual que lib/mail-templates.js): **negrita**, _cursiva_, [color]…[/color], [resaltado]…[/resaltado]
+const MAIL_COLORS = { rojo: '#c8102e', verde: '#059669', azul: '#2563eb', naranja: '#d97706', gris: '#6b7280' };
+function mailFormat(html, brand) {
+  const colors = { ...MAIL_COLORS, marca: brand };
+  let out = html;
+  for (let i = 0; i < 3; i += 1) {
+    out = out.replace(/\[(rojo|verde|azul|naranja|gris|marca)\]([\s\S]*?)\[\/\1\]/gi, (m, c, t) => `<span style="color:${colors[c.toLowerCase()]}">${t}</span>`)
+      .replace(/\[resaltado\]([\s\S]*?)\[\/resaltado\]/gi, '<span style="background:#fef08a;padding:0 2px">$1</span>');
+  }
+  return out.replace(/\*\*([^*\n][\s\S]*?)\*\*/g, '<b>$1</b>').replace(/(^|[\s(>¡¿"])_([^_\n]+?)_(?=$|[\s).,;:!?<"])/g, '$1<i>$2</i>');
+}
+const mailStrip = (x) => String(x || '').replace(/\[\/?(rojo|verde|azul|naranja|gris|marca|resaltado)\]/gi, '').replace(/\*\*/g, '');
 const mailEscape = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function mailPreview(key, tpl, all, sample) {
   const vals = {
@@ -976,11 +988,13 @@ function mailPreview(key, tpl, all, sample) {
     'sistema.nombre': 'CRM comercial', 'sistema.estado': 'caído', 'sistema.mensaje': 'No se puede ingresar. Estamos trabajando con el proveedor.', 'sistema.resolucion': 'hoy 14:30 hs',
   };
   const fill = (t, esc) => String(t || '').replace(/\{\{\s*([a-z_.]+)\s*\}\}/gi, (m, k) => (Object.hasOwn(vals, k) ? (esc ? mailEscape(vals[k]) : vals[k]) : m));
+  const brandColor = /^#[0-9a-f]{3,8}$/i.test(state.meta.brand?.color || '') ? state.meta.brand.color : '#C8102E';
   const tidy = (x) => x.replace(/\s+,/g, ',').replace(/ {2,}/g, ' ');
   const steps = '<ol><li>Verifique que la impresora esté encendida y con papel.</li><li>Apáguela, espere 30 segundos y vuelva a encenderla.</li></ol>';
   const body = String(tpl.body || '').replace(/\r\n/g, '\n').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => (/^\{\{\s*sugerencias\s*\}\}$/i.test(p) ? steps
-    : `<p>${tidy(fill(mailEscape(p), true)).replace(/\n/g, '<br>').replace(/\{\{\s*sugerencias\s*\}\}/gi, steps)}</p>`)).filter((x) => x !== '<p></p>').join('');
-  let subject = tidy(fill(key === 'auto_reply' ? all.created.subject : tpl.subject, false)).replace(/\s+/g, ' ').trim();
+    : `<p>${tidy(fill(mailFormat(mailEscape(p), brandColor), true)).replace(/\n/g, '<br>').replace(/\{\{\s*sugerencias\s*\}\}/gi, steps)}</p>`))
+    .filter((x) => x.replace(/<[^>]+>/g, '').trim() || x.includes('<ol>')).join('');
+  let subject = tidy(fill(mailStrip(key === 'auto_reply' ? all.created.subject : tpl.subject), false)).replace(/\s+/g, ' ').trim();
   if (!subject.includes('[#1234]')) subject = `[#1234] ${subject}`;
   return `<div class="mail-prev-subj"><small>Asunto</small><b>${mailEscape(subject)}</b></div>
     <div class="mail-prev-body" style="--brand:${mailEscape(state.meta.brand?.color || '#C8102E')}">${body}
@@ -996,7 +1010,7 @@ async function mailTemplatesSettings(body) {
     .map(([k, d]) => `<button type="button" class="chip mail-var" data-var="${k}" title="${esc(d)}">{{${k}}}</button>`).join('');
   body.innerHTML = `<div class="card">
       <h3>${icon('mail', 16)} Correos a los usuarios</h3>
-      <p class="hint" style="margin-top:-4px">Los correos que le llegan al solicitante. Escribí en texto simple: una línea en blanco separa párrafos y las <b>variables</b> entre llaves se reemplazan por los datos del ticket (tocá una para agregarla). El asunto siempre lleva <b>[#número]</b> para que las respuestas vuelvan al ticket (si lo sacás, se agrega solo). ${data.mail ? '' : `<span class="warn-text">El envío de correos todavía no está configurado (<a href="#/settings/channels">Correo e integraciones</a>).</span>`}</p>
+      <p class="hint" style="margin-top:-4px">Los correos que le llegan al solicitante. Escribí en texto simple: una línea en blanco separa párrafos, un salto de línea baja de renglón, y con los botones de formato marcás <b>negrita</b>, <i>cursiva</i>, colores o resaltado. Las <b>variables</b> entre llaves se reemplazan por los datos del ticket (tocá una para agregarla). El asunto siempre lleva <b>[#número]</b> para que las respuestas vuelvan al ticket (si lo sacás, se agrega solo). ${data.mail ? '' : `<span class="warn-text">El envío de correos todavía no está configurado (<a href="#/settings/channels">Correo e integraciones</a>).</span>`}</p>
       <p class="hint">Las <b>respuestas automáticas</b> (qué pasos se sugieren para cada tema) se configuran en <a href="#/settings/ai">Inteligencia artificial → Reglas de respuesta automática</a>.</p>
     </div>
     ${MAIL_CARDS.map(([key, title, when, flag]) => `<section class="card mail-card" data-key="${key}">
@@ -1005,7 +1019,16 @@ async function mailTemplatesSettings(body) {
       <div class="mail-grid">
         <div class="mail-edit">
           ${key === 'auto_reply' ? '' : `<label class="field"><span>Asunto</span><input class="input" name="subject" maxlength="200" value="${esc(cur[key].subject || '')}"></label>`}
-          <label class="field"><span>Texto</span><textarea class="input" name="body" rows="7" maxlength="4000">${esc(cur[key].body || '')}</textarea></label>
+          <div class="field"><span>Texto</span>
+            <div class="mail-fmt" role="toolbar" aria-label="Formato">
+              <button type="button" class="icon-btn sm" data-fmt="b" title="Negrita (**texto**)"><b>N</b></button>
+              <button type="button" class="icon-btn sm" data-fmt="i" title="Cursiva (_texto_)"><i>K</i></button>
+              <button type="button" class="icon-btn sm" data-fmt="resaltado" title="Resaltado"><span class="mail-hl">ab</span></button>
+              <span class="mail-fmt-sep"></span>
+              ${['marca', 'rojo', 'naranja', 'verde', 'azul', 'gris'].map((c) => `<button type="button" class="mail-swatch" data-fmt="${c}" title="Color ${c === 'marca' ? 'de la marca' : c}" style="--sw:${c === 'marca' ? esc(state.meta.brand?.color || '#C8102E') : MAIL_COLORS[c]}"></button>`).join('')}
+              <small class="muted">Elegí un texto y tocá un formato</small>
+            </div>
+            <textarea class="input" name="body" rows="7" maxlength="4000">${esc(cur[key].body || '')}</textarea></div>
           <div class="mail-vars">${varsHtml(key)}</div>
           <div class="row gap wrap"><button type="button" class="btn sm" data-reset>Volver al texto de fábrica</button><button type="button" class="btn sm" data-test ${data.mail ? '' : 'disabled'}>${icon('mail', 13)} Enviarme una prueba</button></div>
         </div>
@@ -1039,6 +1062,20 @@ async function mailTemplatesSettings(body) {
       field.focus();
       field.selectionStart = field.selectionEnd = at + ins.length;
       field.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const fmt = e.target.closest('[data-fmt]');
+    if (fmt && card) {
+      const ta = card.querySelector('[name=body]');
+      const [a, b] = [ta.selectionStart, ta.selectionEnd];
+      const sel = ta.value.slice(a, b) || 'texto';
+      const k = fmt.dataset.fmt;
+      const [open, close] = k === 'b' ? ['**', '**'] : k === 'i' ? ['_', '_'] : [`[${k}]`, `[/${k}]`];
+      ta.value = ta.value.slice(0, a) + open + sel + close + ta.value.slice(b);
+      ta.focus();
+      ta.selectionStart = a + open.length;
+      ta.selectionEnd = a + open.length + sel.length;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
     }
     if (e.target.closest('[data-reset]') && card) {
       const k = card.dataset.key;

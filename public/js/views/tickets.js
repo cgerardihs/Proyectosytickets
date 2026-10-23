@@ -58,6 +58,8 @@ export async function render(el) {
         <span class="pager"></span>
         ${isManager() ? `<button class="icon-btn" data-act="export" title="Exportar CSV">${icon('download', 17)}</button>` : ''}
         <button class="icon-btn" data-act="reload" title="Actualizar">${icon('refresh', 17)}</button>
+        <label class="auto-refresh" title="Actualizar la lista sola">${icon('clock', 13)}<select class="input sm" data-act="every" aria-label="Actualizar la lista sola">
+          ${[[0, 'Sin actualizar'], [30, 'Cada 30 s'], [60, 'Cada 1 min'], [120, 'Cada 2 min'], [300, 'Cada 5 min']].map(([v, l]) => `<option value="${v}" ${refreshEvery() === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </div>
       <div class="table-wrap"><table class="tbl tickets-tbl">
         <thead><tr>
@@ -73,11 +75,20 @@ export async function render(el) {
   const tbody = el.querySelector('tbody');
   const setQ = (patch) => navigate(`#/tickets${buildQuery({ ...parseHashQuery(), page: '', ...patch })}`);
 
-  async function load() {
+  let lastLoad = 0;
+  let known = null; // números que ya se vieron (para marcar los nuevos)
+  async function load({ silent = false } = {}) {
     try {
-      data = await api(`/tickets${buildQuery({ ...q, limit: 50 })}`);
-      draw();
+      const next = await api(`/tickets${buildQuery({ ...q, limit: 50 })}`);
+      lastLoad = Date.now();
+      const fresh = known ? next.items.filter((t) => !known.has(t.number)).map((t) => t.number) : [];
+      known = new Set([...(known || []), ...next.items.map((t) => t.number)]);
+      data = next;
+      draw(fresh);
+      if (silent && fresh.length) toast(fresh.length === 1 ? `Entró el ticket #${fresh[0]}` : `Entraron ${fresh.length} tickets nuevos`);
+      el.querySelector('[data-act=reload]').title = `Actualizar · última vez ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`;
     } catch (e) {
+      if (silent) return; // una falla de red en la actualización automática no borra la lista
       tbody.innerHTML = `<tr><td colspan="10">${emptyState('No se pudieron cargar los tickets', e.message, 'alert')}</td></tr>`;
     }
     api('/tickets/counts').then((c) => {
@@ -107,14 +118,14 @@ export async function render(el) {
     </tr>`;
   }
 
-  function draw() {
+  function draw(fresh = []) {
     const from = data.total ? (data.page - 1) * data.limit + 1 : 0;
     const to = Math.min(data.page * data.limit, data.total);
     el.querySelector('.pager').innerHTML = `${from} – ${to} de ${data.total.toLocaleString('es-AR')}
       <button class="icon-btn sm" data-act="prev" ${data.page <= 1 ? 'disabled' : ''} aria-label="Anterior">${icon('left', 16)}</button>
       <button class="icon-btn sm" data-act="next" ${to >= data.total ? 'disabled' : ''} aria-label="Siguiente">${icon('right', 16)}</button>`;
     tbody.innerHTML = data.items.length
-      ? data.items.map(rowHtml).join('')
+      ? data.items.map((t) => (fresh.includes(t.number) ? rowHtml(t).replace('<tr ', '<tr data-new ') : rowHtml(t))).join('')
       : `<tr><td colspan="10">${emptyState(q.q || FILTER_KEYS.some((k) => q[k]) ? 'Ningún ticket coincide' : 'No hay tickets en esta vista', '', 'inbox')}</td></tr>`;
     syncBulk();
   }
@@ -199,7 +210,7 @@ export async function render(el) {
     if (act === 'order') setQ({ order: (q.order || 'desc') === 'desc' ? 'asc' : 'desc' });
     if (act === 'prev') setQ({ page: data.page - 1 });
     if (act === 'next') setQ({ page: data.page + 1 });
-    if (act === 'reload') load();
+    if (act === 'reload') load({ silent: true });
     if (act === 'filters') openFilters(q, setQ);
     if (act === 'newview') saveView(q);
     if (act === 'export') downloadUrl(`/api/tickets/export${buildQuery({ ...q, page: '' })}`);
@@ -262,7 +273,34 @@ export async function render(el) {
     });
   }
 
+  // ---------- Actualización automática ----------
+  // Cada tanto se vuelve a pedir la lista, salvo que el agente esté haciendo algo (tickets tildados, un menú o una
+  // ventana abiertos, o escribiendo en la búsqueda) o la pestaña esté oculta. Al volver a la pestaña, se pone al día.
+  const busy = () => document.hidden || selected.size > 0 || document.querySelector('.popover, .modal-backdrop')
+    || (document.activeElement?.matches?.('input, textarea, select') && el.contains(document.activeElement) && document.activeElement.dataset.act !== 'every');
+  const tick = () => {
+    if (!el.isConnected) { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); return; }
+    const every = refreshEvery();
+    if (every && Date.now() - lastLoad >= every * 1000 - 500 && !busy()) load({ silent: true });
+  };
+  const onVisible = () => { if (!document.hidden) tick(); };
+  const timer = setInterval(tick, 10000);
+  document.addEventListener('visibilitychange', onVisible);
+  el.querySelector('[data-act=every]').addEventListener('change', (e) => {
+    try { localStorage.setItem('tickets-refresh', e.target.value); } catch { /* */ }
+    e.target.blur();
+    toast(Number(e.target.value) ? `La lista se actualiza sola ${e.target.selectedOptions[0].textContent.toLowerCase()}` : 'Actualización automática apagada');
+  });
+
   load();
+}
+
+/** Cada cuántos segundos se actualiza sola la lista (preferencia de cada agente; de fábrica, 1 minuto). */
+function refreshEvery() {
+  let v = null;
+  try { v = localStorage.getItem('tickets-refresh'); } catch { /* */ }
+  const n = v === null ? 60 : Number(v);
+  return [0, 30, 60, 120, 300].includes(n) ? n : 60;
 }
 
 function priorityBadgeInline(p) {

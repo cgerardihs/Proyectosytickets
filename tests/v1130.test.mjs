@@ -83,13 +83,13 @@ test('plantillas editables: ticket recibido (correo y portal), respuesta automá
   let n = (await one(`select number from tickets where subject='Pedido de silla nueva'`)).number;
   let m = lastTo('mpaz@hanseatica.com');
   assert.equal(m.subject, `[#${n}] Recibimos tu pedido: Pedido de silla nueva`);
-  assert.match(m.html, new RegExp(`<p>Hola Marcos!</p><p>Tu número es ${n}.<br>Te escribimos pronto. — Mesa de Ayuda</p>`));
+  assert.match(m.html, new RegExp(`<p style="margin:0 0 12px">Hola Marcos!</p><p style="margin:0 0 12px">Tu número es ${n}.<br>Te escribimos pronto. — Mesa de Ayuda</p>`));
   assert.match(m.html, /Abrir mi ticket/);
   assert.ok(!m.html.includes('sin modificar el asunto'), 'nota al pie vacía = sin nota');
   // Respuesta automática con el texto propio alrededor de los pasos
   ok(await inbound('Marcos Paz <mpaz@hanseatica.com>', 'No me imprime la impresora', '<p>Nada</p>'));
   m = lastTo('mpaz@hanseatica.com');
-  assert.match(m.html, /<p>Probá esto:<\/p><ol>/);
+  assert.match(m.html, /<p style="margin:0 0 12px">Probá esto:<\/p><ol[^>]*>/);
   assert.match(m.subject, /^\[#\d+\] Recibimos tu pedido: No me imprime la impresora$/);
   // Portal
   ok(await anon.post('/portal/tickets', { name: 'Lucía Díaz', email: 'ldiaz@hanseatica.com', subject: 'Alta de usuario', body_text: 'Para la nueva analista' }));

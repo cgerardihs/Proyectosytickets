@@ -51,7 +51,7 @@ test('por correo: "tengo problemas con el CRM" se vincula solo y recibe el aviso
   const m = lastTo('rpulgar@hanseatica.com');
   assert.equal(m.subject, `[#${t.number}] tengo problemas con el CRM`);
   assert.match(m.html, /Ya sabemos que CRM comercial está caído y lo estamos resolviendo\./);
-  assert.match(m.html, /<p>No se puede ingresar\. Trabajando con el proveedor\.<\/p>/);
+  assert.match(m.html, /<p style="margin:0 0 12px">No se puede ingresar\. Trabajando con el proveedor\.<\/p>/);
   assert.match(m.html, /Resolución estimada: (hoy|mañana) \d\d:\d\d hs\./);
   assert.equal(t.ai?.auto, undefined, 'no se manda además la respuesta automática');
   const d = (await admin.get(`/tickets/${t.number}`)).data;
@@ -78,7 +78,7 @@ test('palabras propias: también en el texto; y por tema del ticket', async () =
   ok(await inbound('Lucía Díaz <ldiaz@hanseatica.com>', 'No puedo emitir', '<p>El core está lentísimo.</p>'));
   assert.deepEqual(await linkOf('No puedo emitir'), { name: 'Equis', auto: true });
   assert.match(lastTo('ldiaz@hanseatica.com').html, /Ya sabemos que Equis está funcionando con problemas/);
-  assert.doesNotMatch(lastTo('ldiaz@hanseatica.com').html, /<p><\/p>/, 'sin mensaje, el párrafo no aparece');
+  assert.doesNotMatch(lastTo('ldiaz@hanseatica.com').html, /<p[^>]*><\/p>/, 'sin mensaje, el párrafo no aparece');
   // Por tema: el sistema tiene asociado un tema y el ticket del portal lo eligió
   const tech = await one('select id from tech_categories order by id limit 1');
   ok(await admin.patch(`/admin/critical-systems/${S['CRM comercial']}`, { tech_category_id: tech.id }));
@@ -109,7 +109,7 @@ test('se puede apagar, y el texto es editable', async () => {
   ok(await inbound('Sofía Ríos <srios@hanseatica.com>', 'Sigue sin abrir el CRM', '<p>x</p>'));
   const m = lastTo('srios@hanseatica.com');
   assert.match(m.subject, /^\[#\d+\] CRM comercial caído$/);
-  assert.match(m.html, /<p>Vuelve (hoy|mañana) \d\d:\d\d hs\.<\/p>/);
+  assert.match(m.html, /<p style="margin:0 0 12px">Vuelve (hoy|mañana) \d\d:\d\d hs\.<\/p>/);
   const p = await anon.get('/portal/status');
   assert.deepEqual(p.data.systems.find((s) => s.name === 'Equis').words, { subject: ['equis', 'core'], body: ['equis', 'core'] });
   await q('select 1');

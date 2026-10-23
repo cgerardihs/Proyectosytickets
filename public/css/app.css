@@ -1209,3 +1209,19 @@ img.remote-img { cursor: pointer; }
 .mail-prev-btn { display: inline-block; background: #1f2937; color: #fff; padding: 7px 13px; border-radius: 6px; font-size: 12.5px; }
 .mail-prev-foot { font-size: 11.5px; color: #6b7280; }
 @media (max-width: 900px) { .mail-grid { grid-template-columns: 1fr; } }
+/* v1.13.2: actualización automática de la lista de tickets */
+.auto-refresh { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.auto-refresh select { width: auto; border-color: transparent; background: transparent; color: var(--muted); padding-left: 2px; }
+.auto-refresh select:hover, .auto-refresh select:focus { border-color: var(--line); color: var(--text); }
+.tickets-tbl tr[data-new] td { animation: tk-new 6s ease-out; }
+.tickets-tbl tr[data-new] td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+@keyframes tk-new { 0%, 40% { background: color-mix(in srgb, var(--accent) 22%, white); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .tickets-tbl tr[data-new] td { animation: none; background: color-mix(in srgb, var(--accent) 14%, white); } }
+.mail-fmt { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; padding: 4px 6px; background: var(--panel-2); }
+.mail-fmt + textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
+.mail-fmt .icon-btn b, .mail-fmt .icon-btn i { font-size: 14px; font-family: Georgia, serif; }
+.mail-hl { background: #fef08a; padding: 0 3px; font-size: 12px; font-weight: 600; }
+.mail-fmt-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+.mail-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); background: var(--sw); cursor: pointer; padding: 0; }
+.mail-swatch:hover { box-shadow: 0 0 0 2px var(--sw); }
+.mail-fmt small { margin-left: auto; font-size: 11px; }

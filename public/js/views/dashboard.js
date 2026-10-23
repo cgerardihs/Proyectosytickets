@@ -5,7 +5,17 @@ import { criticalPanelHtml, wireCriticalPanel } from '../critical.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
+let homeTimer = null;
+
 export async function render(el, _p, query) {
+  clearInterval(homeTimer);
+  // El Inicio se actualiza solo cada 2 minutos mientras está a la vista (sin ventanas ni menús abiertos)
+  const here = location.hash;
+  homeTimer = setInterval(() => {
+    if (!el.isConnected || location.hash !== here) { clearInterval(homeTimer); return; }
+    if (document.hidden || document.querySelector('.popover, .modal-backdrop') || (document.activeElement?.matches?.('input, select, textarea') && el.contains(document.activeElement))) return;
+    render(el, _p, query).catch(() => {});
+  }, 120000);
   const scope = query.scope === 'team' ? 'team' : 'mine';
   const agent = scope === 'team' && query.agent ? Number(query.agent) : null;
   setCrumbs([{ label: 'Inicio' }]);
