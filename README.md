@@ -95,6 +95,11 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Tickets por correo sin recargar (v1.13.3)**
+- Cuando entra un correo al buzón de Microsoft 365, el ticket **aparece solo** en la lista, en el Inicio y, si es una respuesta, dentro del ticket abierto (si el agente está escribiendo, solo se avisa). Funciona aunque la actualización automática esté apagada.
+- La lectura del buzón que hace la app mientras los agentes la usan ya no queda a medio camino en Vercel (`waitUntil`): antes, si tardaba más de unos segundos, el correo recién se procesaba con la siguiente consulta.
+- Para que los correos entren aunque nadie tenga la app abierta, dejá programada la lectura externa: un `POST` a `/api/m365/poll` cada 1–5 min con el encabezado `x-cron-key: <CRON_SECRET>` (por ejemplo en cron-job.org).
+
 **Actualización automática y formato en los correos (v1.13.2)**
 - La **lista de tickets se actualiza sola** (de fábrica cada 1 minuto; cada agente elige 30 s, 1, 2 o 5 min o apagado, al lado del botón Actualizar). No interrumpe: espera si hay tickets tildados, un menú o una ventana abiertos o se está escribiendo, y se pone al día al volver a la pestaña. Los tickets nuevos se marcan y aparece un aviso. El **Inicio** se actualiza cada 2 minutos.
 - **Correos a los usuarios**: barra de formato para **negrita** (`**texto**`), _cursiva_ (`_texto_`), colores (`[rojo]texto[/rojo]`, también verde, azul, naranja, gris y el de la marca) y resaltado (`[resaltado]texto[/resaltado]`). Lo que escribe el usuario nunca se toma como formato.

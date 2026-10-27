@@ -6,9 +6,19 @@ import { criticalPanelHtml, wireCriticalPanel } from '../critical.js';
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 let homeTimer = null;
+let homeInbox = null;
 
 export async function render(el, _p, query) {
   clearInterval(homeTimer);
+  if (homeInbox) window.removeEventListener('hd:inbox', homeInbox);
+  // Entró un ticket por correo: el Inicio se actualiza enseguida (salvo que se esté usando un menú o una ventana)
+  const hereNow = location.hash;
+  homeInbox = () => {
+    if (!el.isConnected || location.hash !== hereNow) { window.removeEventListener('hd:inbox', homeInbox); return; }
+    if (document.querySelector('.popover, .modal-backdrop') || (document.activeElement?.matches?.('input, select, textarea') && el.contains(document.activeElement))) return;
+    render(el, _p, query).catch(() => {});
+  };
+  window.addEventListener('hd:inbox', homeInbox);
   // El Inicio se actualiza solo cada 2 minutos mientras está a la vista (sin ventanas ni menús abiertos)
   const here = location.hash;
   homeTimer = setInterval(() => {

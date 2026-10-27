@@ -279,11 +279,19 @@ export async function render(el) {
   const busy = () => document.hidden || selected.size > 0 || document.querySelector('.popover, .modal-backdrop')
     || (document.activeElement?.matches?.('input, textarea, select') && el.contains(document.activeElement) && document.activeElement.dataset.act !== 'every');
   const tick = () => {
-    if (!el.isConnected) { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); return; }
+    if (!el.isConnected) { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('hd:inbox', onInbox); return; }
     const every = refreshEvery();
-    if (every && Date.now() - lastLoad >= every * 1000 - 500 && !busy()) load({ silent: true });
+    if (busy()) return;
+    if ((every && Date.now() - lastLoad >= every * 1000 - 500) || lastLoad === 0) load({ silent: true });
   };
   const onVisible = () => { if (!document.hidden) tick(); };
+  // Entró algo por correo (lo avisa la consulta de notificaciones): se actualiza ya, o en la próxima vuelta si el
+  // agente está haciendo algo
+  const onInbox = () => {
+    if (!el.isConnected) { window.removeEventListener('hd:inbox', onInbox); return; }
+    if (busy()) lastLoad = 0; else load({ silent: true });
+  };
+  window.addEventListener('hd:inbox', onInbox);
   const timer = setInterval(tick, 10000);
   document.addEventListener('visibilitychange', onVisible);
   el.querySelector('[data-act=every]').addEventListener('change', (e) => {

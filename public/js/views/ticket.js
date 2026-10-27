@@ -48,6 +48,15 @@ export async function render(el, [num]) {
   let devices = null; // equipos de Intune
   el.className = 'view ticket-view';
 
+  // El usuario respondió por correo este ticket: se muestra sin recargar (si se está escribiendo, solo se avisa)
+  const onInbox = (e) => {
+    if (!el.isConnected || !el.classList.contains('ticket-view')) { window.removeEventListener('hd:inbox', onInbox); return; }
+    if (!(e.detail?.updated || []).map(String).includes(String(num))) return;
+    if (composer || document.querySelector('.modal-backdrop')) toast('Llegó una respuesta nueva en este ticket: se ve al terminar o al actualizar');
+    else load().catch(() => {});
+  };
+  window.addEventListener('hd:inbox', onInbox);
+
   async function load() {
     d = await api(`/tickets/${num}`);
     draw();

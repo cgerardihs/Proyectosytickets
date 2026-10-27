@@ -203,6 +203,8 @@ async function pollNotifications() {
   try {
     const d = await api('/notifications');
     state.unread = d.unread;
+    // Entraron tickets o respuestas por correo: las pantallas abiertas (lista, inicio, ticket) se actualizan solas
+    if (d.inbox) window.dispatchEvent(new CustomEvent('hd:inbox', { detail: d.inbox }));
     const dot = document.querySelector('#btnBell .dot');
     if (dot) { dot.hidden = !d.unread; dot.textContent = d.unread > 9 ? '9+' : String(d.unread); }
   } catch { /* */ }
