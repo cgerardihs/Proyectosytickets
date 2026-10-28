@@ -44,10 +44,10 @@ export async function render(el) {
       <span class="rp-maxhint">Esc para salir</span>
       ${maxButton()}
     </div>
-    <div class="rp-body"><div class="cal-wrap">
-      <div class="cal-side"><div><div class="lbl" style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Qué mostrar</div><div data-layers></div></div>
+    <div class="rp-body"><div class="rc-wrap">
+      <div class="rc-side"><div><div class="lbl" style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Qué mostrar</div><div data-layers></div></div>
         <p class="small muted">Tocá un evento para abrir el proyecto, la tarea o el ticket. Los feriados salen de Configuración → Horario de atención.</p></div>
-      <div class="cal-main" data-main><div class="loading"><span class="spinner"></span></div></div>
+      <div class="rc-main" data-main><div class="loading"><span class="spinner"></span></div></div>
     </div></div>
   </div>`;
   const main = el.querySelector('[data-main]');
@@ -68,7 +68,7 @@ export async function render(el) {
   const evHtml = (e, { cont = false } = {}) => {
     const h = href(e);
     const tag = h ? 'a' : 'span';
-    const cls = `cal-ev ${e.end ? 'span' : ''} ${e.done ? 'done' : ''}`;
+    const cls = `rc-ev ${e.end ? 'span' : ''} ${e.done ? 'done' : ''}`;
     const title = `${LABEL[e.layer]}: ${e.title}${e.user_id ? ` · ${userName(e.user_id)}` : ''}${e.note ? `\n${e.note}` : ''}`;
     return `<${tag} class="${cls}" style="--c:${COLOR[e.layer]}" ${h ? `href="${h}"` : ''} title="${esc(title)}">${cont ? '&nbsp;' : `${e.milestone ? '◆ ' : ''}${esc(e.title)}`}</${tag}>`;
   };
@@ -78,7 +78,7 @@ export async function render(el) {
     el.querySelectorAll('[data-v]').forEach((b) => b.classList.toggle('on', b.dataset.v === ui.view));
     const [from, to] = span();
     const all = (await eventsFor(from, to)).filter((e) => (e.end ? e.end >= from && e.date <= to : e.date >= from && e.date <= to) && personOk(e));
-    el.querySelector('[data-layers]').innerHTML = LAYERS.map(([k, l, c]) => `<label class="cal-layer" style="--c:${c}"><input type="checkbox" data-l="${k}" ${ui.on.has(k) ? 'checked' : ''}><span class="sw"></span>${l}<em>${all.filter((e) => e.layer === k).length}</em></label>`).join('');
+    el.querySelector('[data-layers]').innerHTML = LAYERS.map(([k, l, c]) => `<label class="rc-layer" style="--c:${c}"><input type="checkbox" data-l="${k}" ${ui.on.has(k) ? 'checked' : ''}><span class="sw"></span>${l}<em>${all.filter((e) => e.layer === k).length}</em></label>`).join('');
     const evs = all.filter((e) => ui.on.has(e.layer));
     const byDay = {};
     for (const e of evs) {
@@ -86,7 +86,7 @@ export async function render(el) {
       else (byDay[e.date] ||= []).push(e);
     }
     const holidays = new Set(evs.filter((e) => e.layer === 'holiday').map((e) => e.date));
-    const dow = `<div class="cal-g7 cal-dow">${['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((x) => `<div>${x}</div>`).join('')}</div>`;
+    const dow = `<div class="rc-g7 rc-dow">${['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((x) => `<div>${x}</div>`).join('')}</div>`;
     const title = el.querySelector('[data-title]');
     if (ui.view === 'm') {
       const m = D(ui.month);
@@ -97,16 +97,16 @@ export async function render(el) {
         const list = byDay[d] || [];
         const showAll = expandedDays.has(d);
         const shown = showAll ? list : list.slice(0, 3);
-        cells += `<div class="cal-day ${d.slice(0, 7) !== ui.month.slice(0, 7) ? 'out' : ''} ${d === today ? 'tod' : ''} ${holidays.has(d) ? 'hol' : ''}"><div class="cal-dn"><b>${Number(d.slice(8))}</b></div>${shown.map((e) => evHtml(e, { cont: e.cont })).join('')}${list.length > 3 ? `<button class="cal-more" data-more="${d}">${showAll ? 'Ver menos' : `+${list.length - 3} más`}</button>` : ''}</div>`;
+        cells += `<div class="rc-day ${d.slice(0, 7) !== ui.month.slice(0, 7) ? 'out' : ''} ${d === today ? 'tod' : ''} ${holidays.has(d) ? 'hol' : ''}"><div class="rc-dn"><b>${Number(d.slice(8))}</b></div>${shown.map((e) => evHtml(e, { cont: e.cont })).join('')}${list.length > 3 ? `<button class="rc-more" data-more="${d}">${showAll ? 'Ver menos' : `+${list.length - 3} más`}</button>` : ''}</div>`;
       }
-      main.innerHTML = dow + `<div class="cal-g7">${cells}</div>`;
+      main.innerHTML = dow + `<div class="rc-g7">${cells}</div>`;
     } else if (ui.view === 'w') {
       title.textContent = `Semana del ${dmy(ui.week).slice(0, 5)}`;
-      main.innerHTML = dow + `<div class="cal-g7">${Array.from({ length: 7 }, (_, i) => { const d = addDays(ui.week, i); const list = byDay[d] || []; return `<div class="cal-day week ${d === today ? 'tod' : ''} ${holidays.has(d) ? 'hol' : ''}"><div class="cal-dn"><b>${Number(d.slice(8))}/${d.slice(5, 7)}</b></div>${list.map((e) => evHtml(e)).join('') || '<span class="small muted">—</span>'}</div>`; }).join('')}</div>`;
+      main.innerHTML = dow + `<div class="rc-g7">${Array.from({ length: 7 }, (_, i) => { const d = addDays(ui.week, i); const list = byDay[d] || []; return `<div class="rc-day week ${d === today ? 'tod' : ''} ${holidays.has(d) ? 'hol' : ''}"><div class="rc-dn"><b>${Number(d.slice(8))}/${d.slice(5, 7)}</b></div>${list.map((e) => evHtml(e)).join('') || '<span class="small muted">—</span>'}</div>`; }).join('')}</div>`;
     } else {
       title.textContent = 'Próximos 45 días';
       const days = Array.from({ length: 45 }, (_, i) => addDays(today, i)).filter((d) => byDay[d]?.length);
-      main.innerHTML = `<div class="cal-agenda">${days.map((d) => `<h4>${DAYS[D(d).getUTCDay()]} ${dmy(d)}${d === today ? ' · hoy' : ''}</h4>${byDay[d].filter((e) => !e.cont).map((e) => `<div class="it"><span class="ex-dot" style="background:${COLOR[e.layer]}"></span><span style="flex:1;min-width:0">${evHtml(e)}</span>${e.user_id ? `${avatar(e.user_id, 20)} <span class="small">${esc(userName(e.user_id))}</span>` : ''}<span class="muted small" style="width:170px;text-align:right">${LABEL[e.layer]}</span></div>`).join('')}`).join('') || '<p class="muted" style="padding:20px">No hay nada en los próximos 45 días con las capas elegidas.</p>'}</div>`;
+      main.innerHTML = `<div class="rc-agenda">${days.map((d) => `<h4>${DAYS[D(d).getUTCDay()]} ${dmy(d)}${d === today ? ' · hoy' : ''}</h4>${byDay[d].filter((e) => !e.cont).map((e) => `<div class="it"><span class="ex-dot" style="background:${COLOR[e.layer]}"></span><span style="flex:1;min-width:0">${evHtml(e)}</span>${e.user_id ? `${avatar(e.user_id, 20)} <span class="small">${esc(userName(e.user_id))}</span>` : ''}<span class="muted small" style="width:170px;text-align:right">${LABEL[e.layer]}</span></div>`).join('')}`).join('') || '<p class="muted" style="padding:20px">No hay nada en los próximos 45 días con las capas elegidas.</p>'}</div>`;
     }
   }
 

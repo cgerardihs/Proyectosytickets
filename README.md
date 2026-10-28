@@ -95,6 +95,9 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Corrección (v1.14.1)**
+- El calendario del Portfolio se veía descuadrado: compartía nombres de estilos con el nuevo calendario de Informes. Ahora cada uno tiene los suyos.
+
 **Informes: roadmap, calendario y explorador (v1.14.0)**
 - **Informes** ahora tiene pestañas: Resumen (lo de siempre), **Roadmap**, **Calendario** y **Explorador**. Las tres nuevas se pueden **maximizar** (botón o tecla **F**; **Esc** vuelve) y recuerdan cómo las dejó cada uno.
 - **Roadmap**: todos los proyectos en una línea de tiempo, con zoom por semanas, meses, trimestres o año; agrupados por sector IT, tipo, líder, estado, área o prioridad; color por salud, tipo o proyecto. Cada proyecto despliega sus etapas; la parte llena de la barra es el avance y el rombo, el fin. Una línea roja punteada muestra el **desvío** respecto del fin planificado (la primera fecha de fin que se cargó). Abajo, la **carga del equipo**: tareas abiertas por persona y por semana. Tocando una barra se ve el detalle. **Imprimir / PDF** lo arma en una hoja horizontal.
