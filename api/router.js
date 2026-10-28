@@ -42,7 +42,7 @@ importRoutes(router);
 
 // Health check: revisa la base y las migraciones. 200 si está sano, 503 si no.
 router.get('/health', async () => {
-  const out = { status: 'ok', time: new Date().toISOString(), version: process.env.npm_package_version || '1.13.5', checks: {} };
+  const out = { status: 'ok', time: new Date().toISOString(), version: process.env.npm_package_version || '1.13.6', checks: {} };
   try {
     out.checks.database = { ok: true, latency_ms: await ping() };
     const m = await migrationStatus();

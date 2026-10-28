@@ -51,3 +51,21 @@ test('al cambiar el responsable, el anterior sale del equipo salvo que tenga tar
   assert.deepEqual(p.member_ids.sort(), [U.matias, U.martin].sort());
   assert.ok(p.assignee_ids.includes(U.matias));
 });
+
+test('v1.13.6: el avance de la lista es el del portfolio (etapas, finalizado = 100 %)', async () => {
+  ok(await admin.post('/projects', { key: 'NPDS', name: 'Nuevo proyecto desarrollo de software', lead_id: U.martin, phases: [{ name: 'Análisis' }, { name: 'Desarrollo' }] }));
+  let p = await proj('NPDS');
+  assert.equal(p.total_issues, 0, 'solo etapas, sin tareas sueltas');
+  assert.equal(p.progress, 0);
+  ok(await admin.patch('/projects/NPDS', { portfolio_status: 'done' }));
+  p = await proj('NPDS');
+  assert.equal(p.progress, 100);
+  // Etapas: una terminada de dos = 50 %
+  ok(await admin.patch('/projects/NPDS', { portfolio_status: 'active' }));
+  const epics = (await admin.get('/projects/NPDS/issues')).data;
+  const list = Array.isArray(epics) ? epics : epics.items;
+  const first = list.find((i) => i.type === 'epic' && i.title === 'Análisis');
+  const done = (await admin.get('/projects/NPDS')).data.statuses.find((s) => s.kind === 'done');
+  ok(await admin.patch(`/issues/${first.key}`, { status_id: done.id }));
+  assert.equal((await proj('NPDS')).progress, 50);
+});

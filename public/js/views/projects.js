@@ -27,7 +27,7 @@ export async function render(el, _p, query) {
   const monthEnd = ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   const in3 = new Date(now.getFullYear(), now.getMonth() + 3, 1);
   const quarterEnd = ymd(new Date(in3.getFullYear(), in3.getMonth(), Math.min(now.getDate(), new Date(in3.getFullYear(), in3.getMonth() + 1, 0).getDate())));
-  const pct = (p) => (p.total_issues ? Math.round((p.done_issues / p.total_issues) * 100) : 0);
+  const pct = (p) => (typeof p.progress === 'number' ? p.progress : p.total_issues ? Math.round((p.done_issues / p.total_issues) * 100) : 0);
   const end = (p) => (p.end_date ? String(p.end_date).slice(0, 10) : '');
   const closed = (p) => ['done', 'cancelled'].includes(p.portfolio_status);
 
