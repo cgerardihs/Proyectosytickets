@@ -261,7 +261,7 @@ export function openProjectForm({ ticket = null, ruleText = '', canConfigure = f
         <button type="button" class="btn sm" data-addphase>${icon('plus', 13)} Agregar etapa</button>
       </div>
       <details class="pf-more" ${state.meta.canPortfolio || ticket ? 'open' : ''}><summary>Datos para el portfolio${ticket ? ' <small class="muted">(origen y sector IT obligatorios)</small>' : ''}</summary>${portfolioFieldsHtml({ area_id: ticket?.category_id || null, priority: ticket ? Math.max(2, Number(ticket.priority) || 2) : 2 }, { required: Boolean(ticket), derived: Boolean(ticket) })}</details>
-      <label class="field"><span>Equipo</span><select class="input" name="members" multiple size="4">${options(users, [ticket?.assignee_id, state.me.id].filter(Boolean))}</select></label>
+      <label class="field"><span>Equipo <small class="muted">— el responsable se suma solo</small></span><select class="input" name="members" multiple size="4">${options(users, [ticket?.assignee_id].filter(Boolean))}</select></label>
       ${ticket ? `<div class="grid2">
         <div class="rule-info">${icon('zap', 15)}<span>Según las reglas de negocio, el ticket ${ruleText}.${canConfigure ? ' <a href="#/settings/dev" data-close>Configurar reglas</a>' : ''}</span></div>
         <label class="check" style="align-self:center"><input type="checkbox" name="notify_contact"> Avisar al solicitante que se gestiona como proyecto ${state.meta.mailEnabled ? '' : '<small class="muted">(queda en el ticket; correo no configurado)</small>'}</label>

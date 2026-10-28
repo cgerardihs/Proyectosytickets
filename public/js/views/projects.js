@@ -39,6 +39,16 @@ export async function render(el, _p, query) {
     const tasks = (p.assignee_ids || []).includes(id);
     return { any: lead || member || tasks, lead, member, tasks }[ui.role] ?? (lead || member || tasks);
   };
+  // Con "Persona" elegida, cada proyecto dice por qué aparece (líder, en el equipo, con tareas)
+  const why = (p) => {
+    if (!ui.person) return '';
+    const id = ui.person === 'me' ? state.me.id : Number(ui.person);
+    const r = [];
+    if (p.lead_id === id) r.push('líder');
+    if (p.lead_id !== id && (p.member_ids || []).includes(id)) r.push('en el equipo');
+    if ((p.assignee_ids || []).includes(id)) r.push('con tareas');
+    return r.length ? `<span class="chip sm muted" title="Por qué aparece con este filtro">${r.join(' · ')}</span>` : '';
+  };
   const matchWhen = (p) => {
     if (!ui.when) return true;
     const e = end(p);
@@ -107,7 +117,7 @@ export async function render(el, _p, query) {
         <div class="proj-top"><span class="proj-key" style="background:${esc(p.color)}">${esc(p.key)}</span>
           ${typeOf(p.type_id) ? `<span class="badge" style="--c:${esc(typeOf(p.type_id).color)}">${esc(typeOf(p.type_id).name)}</span>` : ''}
           ${p.portfolio_status && p.portfolio_status !== 'active' ? `<span class="badge" style="--c:${PSTATUS_COLOR[p.portfolio_status]}">${PSTATUS[p.portfolio_status]}</span>` : ''}
-          ${p.archived ? '<span class="badge">Archivado</span>' : ''}</div>
+          ${p.archived ? '<span class="badge">Archivado</span>' : ''}${why(p)}</div>
         <h3>${esc(p.name)}</h3>
         <p class="muted small clamp2">${esc(p.description || 'Sin descripción')}</p>
         <div class="progress"><span style="width:${pct(p)}%;background:${esc(p.color)}"></span></div>
@@ -118,7 +128,7 @@ export async function render(el, _p, query) {
         <div class="proj-foot"><span class="muted small">Líder: ${p.lead_id ? esc(userName(p.lead_id)) : '<span class="warn-text">sin responsable</span>'}</span><span class="avatars">${[...new Set([...(p.member_ids || []), ...(p.assignee_ids || [])])].slice(0, 5).map((x) => avatar(x, 22)).join('')}</span></div>
       </a>`;
   const row = (p) => `<tr class="clickable" data-href="#/projects/${esc(p.key)}/${typeOf(p.type_id)?.uses_sprints === false ? 'roadmap' : 'board'}">
-      <td><span class="row gap"><span class="proj-key sm" style="background:${esc(p.color)}">${esc(p.key)}</span><b class="ellip" title="${esc(p.name)}">${esc(p.name)}</b>${p.archived ? ' <span class="badge">Archivado</span>' : ''}</span></td>
+      <td><span class="row gap"><span class="proj-key sm" style="background:${esc(p.color)}">${esc(p.key)}</span><b class="ellip" title="${esc(p.name)}">${esc(p.name)}</b>${p.archived ? ' <span class="badge">Archivado</span>' : ''}${why(p)}</span></td>
       <td class="small">${esc(typeOf(p.type_id)?.name || '—')}</td>
       <td>${p.portfolio_status ? `<span class="badge" style="--c:${PSTATUS_COLOR[p.portfolio_status]}">${PSTATUS[p.portfolio_status]}</span>` : '—'}</td>
       <td class="small nowrap">${p.lead_id ? `${avatar(p.lead_id, 20)} ${esc(userName(p.lead_id))}` : '<span class="warn-text">Sin responsable</span>'}</td>

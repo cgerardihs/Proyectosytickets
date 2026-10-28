@@ -95,6 +95,11 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Filtro de proyectos por persona (v1.13.4)**
+- Quien carga un proyecto para otra persona ya no queda solo en el equipo (antes el formulario lo tildaba de fábrica): el equipo es el responsable más los que se elijan.
+- Al cambiar el responsable (en pantalla o desde la planilla del portfolio), el nuevo se suma al equipo y el anterior sale, salvo que tenga tareas abiertas en el proyecto.
+- Con "Persona" elegida, cada proyecto muestra por qué aparece: líder, en el equipo o con tareas.
+
 **Tickets por correo sin recargar (v1.13.3)**
 - Cuando entra un correo al buzón de Microsoft 365, el ticket **aparece solo** en la lista, en el Inicio y, si es una respuesta, dentro del ticket abierto (si el agente está escribiendo, solo se avisa). Funciona aunque la actualización automática esté apagada.
 - La lectura del buzón que hace la app mientras los agentes la usan ya no queda a medio camino en Vercel (`waitUntil`): antes, si tardaba más de unos segundos, el correo recién se procesaba con la siguiente consulta.
