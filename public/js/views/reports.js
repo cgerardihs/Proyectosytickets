@@ -2,8 +2,48 @@ import { state, api, esc, icon, userName, fieldLabel, categoryName, techName, CH
 import { setCrumbs } from '../app.js';
 import { hbars } from '../charts.js';
 
+// v1.14: Informes con pestañas. Roadmap, Calendario y Explorador se pueden maximizar (botón, tecla F; Esc vuelve).
+const TABS = [['summary', 'Resumen', 'chart'], ['roadmap', 'Roadmap', 'gantt'], ['calendar', 'Calendario', 'calendar'], ['explorer', 'Explorador', 'layers']];
+
+/** Pantalla completa para la pestaña: oculta el menú, la barra superior y los encabezados. */
+export function maximizer(host) {
+  const set = (on) => {
+    document.body.classList.toggle('rp-max', on);
+    host.querySelectorAll('[data-max]').forEach((b) => { b.innerHTML = on ? `${icon('minimize', 14)} Salir` : `${icon('maximize', 14)} Maximizar`; b.title = on ? 'Salir de pantalla completa (Esc)' : 'Usar toda la pantalla (F)'; });
+    window.dispatchEvent(new Event('rp:resize'));
+  };
+  const onKey = (e) => {
+    const a = document.activeElement;
+    if ((a?.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(a.type)) || /SELECT|TEXTAREA/.test(a?.tagName) || a?.isContentEditable || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Escape' && document.body.classList.contains('rp-max') && !document.querySelector('.modal-backdrop, .rp-drawer.open')) set(false);
+    if (e.key === 'f' || e.key === 'F') set(!document.body.classList.contains('rp-max'));
+  };
+  host.addEventListener('click', (e) => { if (e.target.closest('[data-max]')) set(!document.body.classList.contains('rp-max')); });
+  document.addEventListener('keydown', onKey);
+  return () => { document.removeEventListener('keydown', onKey); document.body.classList.remove('rp-max'); };
+}
+export const maxButton = () => `<button class="btn sm" data-max title="Usar toda la pantalla (F)">${icon('maximize', 14)} Maximizar</button>`;
+
 export async function render(el, _p, query) {
   setCrumbs([{ label: 'Informes' }]);
+  const tab = TABS.some((t) => t[0] === query.tab) ? query.tab : 'summary';
+  el.innerHTML = `<div class="page rp-page ${tab === 'summary' ? '' : 'wide'}">
+    <div class="page-head rp-head"><div><h1>Informes</h1><p class="muted">${{ summary: 'Indicadores de la mesa de ayuda en el período elegido.', roadmap: 'Todos los proyectos en una línea de tiempo, con etapas, desvíos y la carga del equipo.', calendar: 'Fechas de proyectos, etapas, tareas, vencimientos de SLA, sprints, sistemas críticos y feriados.', explorer: 'Armá tu propia grilla mezclando tickets, proyectos, tareas, contactos y horas, con cualquier campo.' }[tab]}</p></div></div>
+    <div class="tabs rp-tabs">${TABS.map(([k, l, ic]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${icon(ic, 14)} ${l}</button>`).join('')}</div>
+    <div data-tab-body></div></div>`;
+  el.querySelector('.rp-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tab]');
+    if (b) navigate(`#/reports${buildQuery({ tab: b.dataset.tab === 'summary' ? '' : b.dataset.tab, from: b.dataset.tab === 'summary' ? query.from : '', to: b.dataset.tab === 'summary' ? query.to : '' })}`);
+  });
+  const body = el.querySelector('[data-tab-body]');
+  if (tab === 'summary') return renderSummary(body, query);
+  const mod = await import({ roadmap: './reports-roadmap.js', calendar: './reports-calendar.js', explorer: './reports-explorer.js' }[tab]);
+  const stopMax = maximizer(body);
+  const stop = await mod.render(body, query);
+  return () => { stopMax(); if (typeof stop === 'function') stop(); };
+}
+
+async function renderSummary(el, query) {
   const r = await api(`/reports/helpdesk${buildQuery({ from: query.from, to: query.to })}`);
   const sla = (x) => (x.with_sla ? `${Math.round((x.within_sla / x.with_sla) * 100)}%` : '—');
   const table = (title, rows, nameFn, key) => `<section class="card span3">
@@ -21,8 +61,8 @@ export async function render(el, _p, query) {
     subtech: [r.bySubtech || [], subName],
     channel: [r.byChannel, (id) => CHANNEL[id] || id],
   };
-  el.innerHTML = `<div class="page">
-    <div class="page-head"><div><h1>Informes de la mesa de ayuda</h1><p class="muted">Tickets creados entre las fechas elegidas.</p></div>
+  el.innerHTML = `<div>
+    <div class="page-head"><div><h2>Mesa de ayuda</h2><p class="muted">Tickets creados entre las fechas elegidas.</p></div>
       <form class="row gap" data-range><label class="field inline"><span>Desde</span><input class="input sm" type="date" name="from" value="${esc(r.from)}"></label>
       <label class="field inline"><span>Hasta</span><input class="input sm" type="date" name="to" value="${esc(r.to)}"></label><button class="btn sm">Aplicar</button></form></div>
     <div class="kpis">

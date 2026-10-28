@@ -215,7 +215,7 @@ test('health check, request id y migraciones versionadas', async () => {
   assert.equal(r.headers['x-request-id'], 'req-prueba-1234');
   assert.equal(r.data.request_id, 'req-prueba-1234');
   const rows = await q('select version from schema_migrations order by version');
-  assert.deepEqual(rows.map((x) => x.version), [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
+  assert.deepEqual(rows.map((x) => x.version), [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
   const { migrate } = await import('../lib/migrate.js');
   const { SCHEMA_VERSION } = await import('../lib/migrations.js');
   assert.equal(await migrate(), SCHEMA_VERSION, 'correr de nuevo no hace nada');
