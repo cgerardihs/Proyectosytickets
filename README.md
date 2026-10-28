@@ -95,6 +95,10 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Filtros que se mantienen (v1.13.5)**
+- La lista de tickets recuerda, por vista, los filtros, la búsqueda y el orden: se mantienen al recargar la página, al volver desde el menú o al abrir otra pestaña. Se guardan en el navegador de cada agente.
+- Al lado de "Filtros" aparece **Limpiar** para sacarlos de una vez (el orden elegido se mantiene).
+
 **Filtro de proyectos por persona (v1.13.4)**
 - Quien carga un proyecto para otra persona ya no queda solo en el equipo (antes el formulario lo tildaba de fábrica): el equipo es el responsable más los que se elijan.
 - Al cambiar el responsable (en pantalla o desde la planilla del portfolio), el nuevo se suma al equipo y el anterior sale, salvo que tenga tareas abiertas en el proyecto.

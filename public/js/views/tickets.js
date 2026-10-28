@@ -29,9 +29,34 @@ const DESC_FIRST = new Set(['created', 'priority', 'number', 'activity', 'update
 let panelOpen = true;
 try { panelOpen = localStorage.getItem('views-panel') !== '0'; } catch { /* */ }
 
+// Filtros, búsqueda y orden que se recuerdan por vista (v1.13.5): al recargar, al volver desde el menú o en otra pestaña
+const STICKY = [...FILTER_KEYS, 'q', 'sort', 'order'];
+const stickyKey = (view) => `tickets-filters:${view}`;
+function saveSticky(view, obj) {
+  const keep = Object.fromEntries(STICKY.filter((k) => obj[k] !== undefined && obj[k] !== null && obj[k] !== '').map((k) => [k, String(obj[k])]));
+  try {
+    if (Object.keys(keep).length) localStorage.setItem(stickyKey(view), JSON.stringify(keep));
+    else localStorage.removeItem(stickyKey(view));
+  } catch { /* sin almacenamiento: la URL sigue mandando */ }
+}
+function loadSticky(view) {
+  try {
+    const v = JSON.parse(localStorage.getItem(stickyKey(view)) || 'null');
+    if (!v || typeof v !== 'object') return null;
+    const keep = Object.fromEntries(STICKY.filter((k) => typeof v[k] === 'string' && v[k]).map((k) => [k, v[k]]));
+    return Object.keys(keep).length ? keep : null;
+  } catch { return null; }
+}
+
 export async function render(el) {
   const q = parseHashQuery();
   const view = q.view || 'all';
+  // Sin filtros en la dirección: se recuperan los últimos de esta vista. Con filtros: esos quedan guardados.
+  if (STICKY.some((k) => q[k])) saveSticky(view, q);
+  else {
+    const saved = loadSticky(view);
+    if (saved) { location.replace(`#/tickets${buildQuery({ ...q, ...saved })}`); return; }
+  }
   const viewName = view.startsWith('custom:')
     ? state.meta.views.find((v) => `custom:${v.id}` === view)?.name || 'Vista'
     : VIEWS.find((v) => v[0] === view)?.[1] || 'Tickets';
@@ -53,6 +78,7 @@ export async function render(el) {
         <button class="icon-btn" data-act="order" title="Invertir orden">${icon((q.order || 'desc') === 'desc' ? 'arrowDown' : 'arrowUp', 16)}</button>
         <div class="searchbox">${icon('search', 15)}<input data-act="q" placeholder="Buscar en esta vista" value="${esc(q.q || '')}"></div>
         <button class="btn ${FILTER_KEYS.some((k) => q[k]) ? 'active' : ''}" data-act="filters">${icon('filter', 15)} Filtros${FILTER_KEYS.filter((k) => q[k]).length ? ` <b class="pill">${FILTER_KEYS.filter((k) => q[k]).length}</b>` : ''}</button>
+        ${FILTER_KEYS.some((k) => q[k]) || q.q ? '<button class="link-btn" data-act="clear-filters" title="Quitar filtros y búsqueda">Limpiar</button>' : ''}
         <div class="bulk" hidden><span class="bulk-count"></span><button class="btn" data-act="bulk">Acciones ${icon('down', 14)}</button></div>
         <span class="grow"></span>
         <span class="pager"></span>
@@ -73,7 +99,11 @@ export async function render(el) {
   const selected = new Set();
   let data = { items: [], total: 0, page: 1, limit: 50 };
   const tbody = el.querySelector('tbody');
-  const setQ = (patch) => navigate(`#/tickets${buildQuery({ ...parseHashQuery(), page: '', ...patch })}`);
+  const setQ = (patch) => {
+    const next = { ...parseHashQuery(), page: '', ...patch };
+    saveSticky(next.view || 'all', next); // también cuando se limpian (así no se vuelven a aplicar solos)
+    navigate(`#/tickets${buildQuery(next)}`);
+  };
 
   let lastLoad = 0;
   let known = null; // números que ya se vieron (para marcar los nuevos)
@@ -212,6 +242,7 @@ export async function render(el) {
     if (act === 'next') setQ({ page: data.page + 1 });
     if (act === 'reload') load({ silent: true });
     if (act === 'filters') openFilters(q, setQ);
+    if (act === 'clear-filters') setQ(Object.fromEntries([...FILTER_KEYS, 'q'].map((k) => [k, ''])));
     if (act === 'newview') saveView(q);
     if (act === 'export') downloadUrl(`/api/tickets/export${buildQuery({ ...q, page: '' })}`);
     if (act === 'bulk') bulkMenu(a);
