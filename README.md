@@ -95,6 +95,12 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Proyectos que se finalizan solos (v1.13.7)**
+- Cuando todas las tareas (o etapas) de un proyecto quedan hechas, el proyecto pasa solo a **Finalizado** y el responsable recibe un aviso. Si después se reabre una tarea o se agrega una nueva, vuelve a **En curso**.
+- Un Finalizado puesto a mano se respeta (no se reabre solo). No se tocan los proyectos recurrentes, archivados, cancelados ni los que no tienen tareas. Cuenta el avance de las tareas y etapas, no el porcentaje cargado a mano.
+- Al publicar, los proyectos que ya estaban al 100 % pasan a Finalizado la primera vez que alguien abre la lista de proyectos (una sola vez).
+- Migración 18: `projects.auto_done`.
+
 **Avance en la lista de proyectos (v1.13.6)**
 - La columna Avance de la lista (y de las tarjetas) muestra el mismo avance que el portfolio y la pantalla del proyecto: por etapas, por tareas o el cargado a mano, y un proyecto **Finalizado** figura al 100 %. Antes solo contaba las tareas sueltas, así que un proyecto armado por etapas quedaba en 0 %. El orden por avance usa el mismo valor.
 
