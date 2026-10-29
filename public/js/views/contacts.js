@@ -18,20 +18,52 @@ function tabs(active) {
 async function contactsList(el) {
   setCrumbs([{ label: 'Contactos' }]);
   const q = parseHashQuery();
-  const data = await api(`/contacts${buildQuery({ q: q.q, page: q.page, limit: 50 })}`);
+  const status = ['inactive', 'all'].includes(q.status) ? q.status : 'active';
+  const data = await api(`/contacts${buildQuery({ q: q.q, page: q.page, limit: 50, status })}`);
+  const canManage = isManager();
+  const selected = new Set();
+  const stLink = (k, l, n) => `<a href="#/contacts${buildQuery({ q: q.q, status: k === 'active' ? '' : k })}" class="${status === k ? 'on' : ''}">${l}${n !== undefined ? ` <small>${n}</small>` : ''}</a>`;
   el.innerHTML = `<div class="page">
     <div class="page-head"><div><h1>Contactos</h1><p class="muted">Personas que piden ayuda a la mesa.</p></div>
-      <div class="row gap">${tabs('contacts')}${isManager() ? `<button class="btn" data-act="import">${icon('upload', 15)} Importar CSV</button>` : ''}<button class="btn primary" data-act="new">${icon('plus', 15)} Nuevo contacto</button></div></div>
-    <div class="toolbar flat"><div class="searchbox">${icon('search', 15)}<input data-q placeholder="Buscar por nombre, correo o área" value="${esc(q.q || '')}"></div><span class="grow"></span>
+      <div class="row gap">${tabs('contacts')}${canManage ? `<button class="btn" data-act="import">${icon('upload', 15)} Importar CSV</button>` : ''}<button class="btn primary" data-act="new">${icon('plus', 15)} Nuevo contacto</button></div></div>
+    <div class="toolbar flat"><div class="searchbox">${icon('search', 15)}<input data-q placeholder="Buscar por nombre, correo o área" value="${esc(q.q || '')}"></div>
+      <div class="seg">${stLink('active', 'Activos', data.counts?.active)}${stLink('inactive', 'Inactivos', data.counts?.inactive)}${stLink('all', 'Todos')}</div>
+      ${canManage ? `<div class="bulk" hidden><span data-count></span>${status !== 'active' ? `<button class="btn sm" data-act="activate">${icon('check', 14)} Marcar activos</button>` : ''}${status !== 'inactive' ? `<button class="btn sm" data-act="deactivate">${icon('x', 14)} Marcar inactivos</button>` : ''}</div>` : ''}
+      <span class="grow"></span>
       <span class="pager">${data.total} contactos ${data.page > 1 ? `<a class="icon-btn sm" href="#/contacts${buildQuery({ ...q, page: data.page - 1 })}">${icon('left', 16)}</a>` : ''}${data.page * data.limit < data.total ? `<a class="icon-btn sm" href="#/contacts${buildQuery({ ...q, page: data.page + 1 })}">${icon('right', 16)}</a>` : ''}</span></div>
-    <div class="table-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Correo</th><th>Empresa</th><th>Área</th><th>Teléfono</th><th>Tickets</th></tr></thead>
-    <tbody>${data.items.map((c) => `<tr data-id="${c.id}" class="clickable ${c.active === false ? 'inactive' : ''}"><td><b>${esc(c.name)}</b>${c.vip ? ' <span class="badge" style="--c:#b45309">VIP</span>' : ''}</td><td>${esc(c.email)}</td><td>${esc(c.company_name || '')}</td><td>${esc(c.area)}</td><td>${esc(c.phone)}</td><td>${c.ticket_count}</td></tr>`).join('') || `<tr><td colspan="6">${emptyState('Sin contactos', '', 'users')}</td></tr>`}</tbody></table></div>
+    <div class="table-wrap"><table class="tbl"><thead><tr>${canManage ? '<th class="cb"><input type="checkbox" data-all aria-label="Seleccionar todos"></th>' : ''}<th>Nombre</th><th>Correo</th><th>Empresa</th><th>Área</th><th>Teléfono</th><th>Tickets</th></tr></thead>
+    <tbody>${data.items.map((c) => `<tr data-id="${c.id}" class="clickable ${c.active === false ? 'inactive' : ''}">${canManage ? `<td class="cb"><input type="checkbox" data-sel="${c.id}" aria-label="Seleccionar ${esc(c.name)}"></td>` : ''}<td><b>${esc(c.name)}</b>${c.vip ? ' <span class="badge" style="--c:#b45309">VIP</span>' : ''}${c.active === false ? ` <span class="badge" title="${c.inactive_manual ? 'Marcado inactivo en la mesa' : 'Deshabilitado en Microsoft 365'}">Inactivo</span>` : ''}</td><td>${esc(c.email)}</td><td>${esc(c.company_name || '')}</td><td>${esc(c.area)}</td><td>${esc(c.phone)}</td><td>${c.ticket_count}</td></tr>`).join('') || `<tr><td colspan="7">${emptyState(status === 'inactive' ? 'No hay contactos inactivos' : 'Sin contactos', '', 'users')}</td></tr>`}</tbody></table></div>
   </div>`;
-  el.querySelector('[data-q]').addEventListener('input', debounce((e) => navigate(`#/contacts${buildQuery({ q: e.target.value.trim() })}`), 400));
-  el.addEventListener('click', (e) => {
+  const syncBulk = () => {
+    const bar = el.querySelector('.bulk');
+    if (!bar) return;
+    bar.hidden = !selected.size;
+    bar.querySelector('[data-count]').textContent = `${selected.size} seleccionado${selected.size === 1 ? '' : 's'}`;
+    const all = el.querySelector('[data-all]');
+    if (all) all.checked = selected.size > 0 && selected.size === data.items.length;
+  };
+  el.querySelector('[data-q]').addEventListener('input', debounce((e) => navigate(`#/contacts${buildQuery({ q: e.target.value.trim(), status: status === 'active' ? '' : status })}`), 400));
+  el.addEventListener('change', (e) => {
+    if (e.target.matches('[data-sel]')) { e.target.checked ? selected.add(Number(e.target.dataset.sel)) : selected.delete(Number(e.target.dataset.sel)); syncBulk(); }
+    if (e.target.matches('[data-all]')) {
+      el.querySelectorAll('[data-sel]').forEach((x) => { x.checked = e.target.checked; e.target.checked ? selected.add(Number(x.dataset.sel)) : selected.delete(Number(x.dataset.sel)); });
+      syncBulk();
+    }
+  });
+  el.addEventListener('click', async (e) => {
+    if (e.target.closest('td.cb, th.cb')) return;
+    const a = e.target.closest('[data-act]');
+    if (a?.dataset.act === 'activate' || a?.dataset.act === 'deactivate') {
+      const active = a.dataset.act === 'activate';
+      try {
+        const r = await api('/contacts/active', { method: 'POST', body: { ids: [...selected], active } });
+        toast(`${r.updated} contacto${r.updated === 1 ? '' : 's'} marcado${r.updated === 1 ? '' : 's'} como ${active ? 'activo' : 'inactivo'}${r.updated === 1 ? '' : 's'}`);
+        navigate(location.hash);
+      } catch (err) { toastError(err); }
+      return;
+    }
     const tr = e.target.closest('tr[data-id]');
     if (tr) return navigate(`#/contacts/${tr.dataset.id}`);
-    const a = e.target.closest('[data-act]');
     if (a?.dataset.act === 'new') openContactForm(null, (c) => navigate(`#/contacts/${c.id}`));
     if (a?.dataset.act === 'import') importContacts();
   });
@@ -71,8 +103,8 @@ async function contactDetail(el, id) {
   setCrumbs([{ label: 'Contactos', href: '#/contacts' }, { label: c.name }]);
   el.innerHTML = `<div class="page">
     <div class="page-head"><div class="row gap"><span class="avatar contact" style="width:48px;height:48px;font-size:20px">${esc(c.name[0]?.toUpperCase() || '?')}</span>
-      <div><h1>${esc(c.name)}${c.vip ? ' <span class="badge" style="--c:#b45309">VIP</span>' : ''}${c.active === false ? ' <span class="badge">Inactivo en Microsoft 365</span>' : ''}</h1><p class="muted">${c.job_title ? `${esc(c.job_title)} · ` : ''}${esc(c.email)}${c.phone ? ` · ${esc(c.phone)}` : ''}${c.company_name ? ` · ${esc(c.company_name)}` : ''}${c.area ? ` · ${esc(c.area)}` : ''}${c.manager ? ` · Jefe: ${esc(c.manager)}` : ''}</p></div></div>
-      <div class="row gap"><button class="btn" data-act="edit">${icon('edit', 15)} Editar</button><button class="btn primary" data-act="ticket">${icon('plus', 15)} Nuevo ticket</button>
+      <div><h1>${esc(c.name)}${c.vip ? ' <span class="badge" style="--c:#b45309">VIP</span>' : ''}${c.active === false ? ` <span class="badge">${c.inactive_manual ? 'Inactivo' : 'Inactivo en Microsoft 365'}</span>` : ''}</h1><p class="muted">${c.job_title ? `${esc(c.job_title)} · ` : ''}${esc(c.email)}${c.phone ? ` · ${esc(c.phone)}` : ''}${c.company_name ? ` · ${esc(c.company_name)}` : ''}${c.area ? ` · ${esc(c.area)}` : ''}${c.manager ? ` · Jefe: ${esc(c.manager)}` : ''}</p></div></div>
+      <div class="row gap">${isManager() ? `<button class="btn" data-act="toggle-active">${c.active === false ? `${icon('check', 15)} Marcar activo` : `${icon('x', 15)} Marcar inactivo`}</button>` : ''}<button class="btn" data-act="edit">${icon('edit', 15)} Editar</button><button class="btn primary" data-act="ticket">${icon('plus', 15)} Nuevo ticket</button>
       ${isManager() ? `<button class="icon-btn" data-act="delete" title="Eliminar">${icon('trash', 16)}</button>` : ''}</div></div>
     ${c.notes ? `<div class="card"><p>${esc(c.notes)}</p></div>` : ''}
     <div class="card"><h3>Tickets (${c.tickets.length})</h3>
@@ -82,6 +114,14 @@ async function contactDetail(el, id) {
     const a = e.target.closest('[data-act]');
     if (!a) return;
     if (a.dataset.act === 'edit') openContactForm(c, () => navigate(location.hash));
+    if (a.dataset.act === 'toggle-active') {
+      const active = c.active === false;
+      try {
+        await api('/contacts/active', { method: 'POST', body: { ids: [c.id], active } });
+        toast(active ? 'Contacto activo' : 'Contacto inactivo: ya no aparece en las listas ni en las sugerencias');
+        navigate(location.hash);
+      } catch (err) { toastError(err); }
+    }
     if (a.dataset.act === 'ticket') openNewTicket({ contact_email: c.email, contact_name: c.name });
     if (a.dataset.act === 'delete') {
       if (!(await confirmDialog(`¿Eliminar a ${c.name}? Sus tickets quedan sin contacto.`, { danger: true, okText: 'Eliminar' }))) return;

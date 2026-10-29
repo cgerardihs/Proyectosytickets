@@ -1369,3 +1369,4 @@ table.ex-g .na { color: #c0c5cd; }
   .rg-bar, .rg-bar .rg-fill, .rg-key, .rg-today, .rg-row.grp, .rg-heat { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: landscape; margin: 10mm; }
 }
+.seg a small { color: var(--muted); font-weight: 600; margin-left: 3px; }

@@ -582,7 +582,7 @@ export async function render(el, [num]) {
     });
     md.el.querySelector('[data-ok]').addEventListener('click', async () => {
       try {
-        const r = await api(`/contacts?q=${encodeURIComponent(email.value.trim())}&limit=5`);
+        const r = await api(`/contacts?q=${encodeURIComponent(email.value.trim())}&limit=5&status=all`);
         let c = r.items.find((x) => x.email === email.value.trim().toLowerCase());
         if (!c) c = await api('/contacts', { method: 'POST', body: { email: email.value.trim(), name: md.el.querySelector('[name=name]').value.trim() || email.value.split('@')[0] } });
         md.close();

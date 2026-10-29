@@ -95,6 +95,11 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Contactos activos e inactivos (v1.14.3)**
+- En Contactos hay solapas **Activos / Inactivos / Todos** y, para supervisores y administradores, casillas para marcar varios contactos a la vez como activos o inactivos (también desde la ficha de cada contacto).
+- Un contacto inactivo no aparece en la lista ni en las sugerencias al cargar un ticket. Sus correos siguen entrando como tickets, para no perder pedidos.
+- Si lo marcaste inactivo a mano, la sincronización con Microsoft 365 no lo vuelve a activar. Migración 20: `contacts.inactive_manual`.
+
 **Equipos del solicitante (v1.14.2)**
 - Si a la app de Azure le falta el permiso de Intune (`DeviceManagementManagedDevices.Read.All`), el ticket ahora lo dice claro en lugar de mostrar el error crudo de Microsoft. Los supervisores ven qué permiso falta; los agentes, que avisen a un administrador. Cuando el solicitante simplemente no tiene equipos, el mensaje es "El solicitante no tiene equipos administrados en Intune".
 - Los errores de Microsoft 365 en general se muestran sin el bloque técnico (JSON, Operation ID, URL).
