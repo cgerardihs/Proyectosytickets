@@ -131,7 +131,7 @@ export async function render(el, [num]) {
     const head = `<h3>${icon('layers', 15)} Equipos del solicitante <small class="muted">Intune</small></h3>`;
     if (devices.loading) return `<div class="card">${head}<p class="muted small">Consultando Intune…</p></div>`;
     if (devices.error) return `<div class="card">${head}<p class="warn-text small">${esc(devices.error)}</p></div>`;
-    if (!devices.devices.length) return `<div class="card">${head}<p class="muted small">${esc(devices.notice || 'No tiene equipos administrados.')}</p></div>`;
+    if (!devices.devices.length) return `<div class="card">${head}<p class="${devices.notice_kind === 'permission' ? 'warn-text' : 'muted'} small">${esc(devices.notice || 'El solicitante no tiene equipos administrados en Intune.')}</p></div>`;
     const comp = { compliant: ['Cumple', 'ok'], noncompliant: ['No cumple', 'danger'], inGracePeriod: ['En gracia', 'warn'] };
     return `<div class="card">${head}<ul class="dev-list">${devices.devices.map((x) => `<li>
       <div class="row gap"><b class="grow">${esc(x.name)}</b><span class="badge" style="--c:var(--${(comp[x.compliance] || ['', 'muted'])[1]})">${esc((comp[x.compliance] || [x.compliance || 'Sin dato'])[0])}</span></div>

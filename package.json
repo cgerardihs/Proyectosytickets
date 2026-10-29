@@ -1,6 +1,6 @@
 {
   "name": "hanseatica-desk",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "description": "Mesa de ayuda + gestión de proyectos (Vercel + Neon)",
   "scripts": {
     "dev": "node scripts/dev.mjs",
