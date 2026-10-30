@@ -95,6 +95,9 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Todos los tickets en una vista (v1.14.4)**
+- Al lado del paginado de la lista de tickets se elige cuántos ver: 50, 100, 200 o 500 por página, o **Todos** (hasta 2000). Cada agente elige el suyo y queda guardado.
+
 **Contactos activos e inactivos (v1.14.3)**
 - En Contactos hay solapas **Activos / Inactivos / Todos** y, para supervisores y administradores, casillas para marcar varios contactos a la vez como activos o inactivos (también desde la ficha de cada contacto).
 - Un contacto inactivo no aparece en la lista ni en las sugerencias al cargar un ticket. Sus correos siguen entrando como tickets, para no perder pedidos.

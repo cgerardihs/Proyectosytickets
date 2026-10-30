@@ -56,3 +56,11 @@ test('solo supervisores y administradores', async () => {
   const any = (await admin.get('/contacts')).data.items[0];
   assert.equal((await agent.post('/contacts/active', { ids: [any.id], active: false })).status, 403);
 });
+
+test('v1.14.4: la lista de tickets acepta hasta 2000 por página ("Todos")', async () => {
+  let r = await admin.get('/tickets?limit=2000');
+  ok(r);
+  assert.equal(r.data.limit, 2000);
+  r = await admin.get('/tickets?limit=99999');
+  assert.equal(r.data.limit, 2000);
+});

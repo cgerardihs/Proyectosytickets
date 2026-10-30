@@ -109,7 +109,7 @@ export async function render(el) {
   let known = null; // números que ya se vieron (para marcar los nuevos)
   async function load({ silent = false } = {}) {
     try {
-      const next = await api(`/tickets${buildQuery({ ...q, limit: 50 })}`);
+      const next = await api(`/tickets${buildQuery({ ...q, limit: pageSize() })}`);
       lastLoad = Date.now();
       const fresh = known ? next.items.filter((t) => !known.has(t.number)).map((t) => t.number) : [];
       known = new Set([...(known || []), ...next.items.map((t) => t.number)]);
@@ -151,9 +151,12 @@ export async function render(el) {
   function draw(fresh = []) {
     const from = data.total ? (data.page - 1) * data.limit + 1 : 0;
     const to = Math.min(data.page * data.limit, data.total);
-    el.querySelector('.pager').innerHTML = `${from} – ${to} de ${data.total.toLocaleString('es-AR')}
-      <button class="icon-btn sm" data-act="prev" ${data.page <= 1 ? 'disabled' : ''} aria-label="Anterior">${icon('left', 16)}</button>
-      <button class="icon-btn sm" data-act="next" ${to >= data.total ? 'disabled' : ''} aria-label="Siguiente">${icon('right', 16)}</button>`;
+    const size = pageSize();
+    const sizeSel = `<select class="input sm" data-act="page-size" style="width:auto" title="Tickets por página" aria-label="Tickets por página">${PAGE_SIZES.map(([v, l]) => `<option value="${v}" ${size === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+    const nav = data.total > data.limit || data.page > 1
+      ? `<button class="icon-btn sm" data-act="prev" ${data.page <= 1 ? 'disabled' : ''} aria-label="Anterior">${icon('left', 16)}</button>
+      <button class="icon-btn sm" data-act="next" ${to >= data.total ? 'disabled' : ''} aria-label="Siguiente">${icon('right', 16)}</button>` : '';
+    el.querySelector('.pager').innerHTML = `${sizeSel} ${to >= data.total && data.page === 1 ? `${data.total.toLocaleString('es-AR')} ticket${data.total === 1 ? '' : 's'}` : `${from} – ${to} de ${data.total.toLocaleString('es-AR')}`}${nav}`;
     tbody.innerHTML = data.items.length
       ? data.items.map((t) => (fresh.includes(t.number) ? rowHtml(t).replace('<tr ', '<tr data-new ') : rowHtml(t))).join('')
       : `<tr><td colspan="10">${emptyState(q.q || FILTER_KEYS.some((k) => q[k]) ? 'Ningún ticket coincide' : 'No hay tickets en esta vista', '', 'inbox')}</td></tr>`;
@@ -261,6 +264,11 @@ export async function render(el) {
       draw();
     }
     if (e.target.matches('[data-act=sort]')) setQ({ sort: e.target.value });
+    if (e.target.matches('[data-act=page-size]')) {
+      try { localStorage.setItem('tickets-page-size', e.target.value); } catch { /* */ }
+      e.target.blur();
+      if (Number(q.page) > 1) setQ({ page: '' }); else load();
+    }
   });
 
   el.querySelector('[data-act=q]').addEventListener('input', debounce((e) => setQ({ q: e.target.value.trim() }), 450));
@@ -335,6 +343,14 @@ export async function render(el) {
 }
 
 /** Cada cuántos segundos se actualiza sola la lista (preferencia de cada agente; de fábrica, 1 minuto). */
+// Tickets por página (lo elige cada agente; "Todos" trae hasta 2000)
+const PAGE_SIZES = [[50, '50 por página'], [100, '100 por página'], [200, '200 por página'], [500, '500 por página'], [2000, 'Todos']];
+function pageSize() {
+  let v = 50;
+  try { v = Number(localStorage.getItem('tickets-page-size')) || 50; } catch { /* */ }
+  return PAGE_SIZES.some(([x]) => x === v) ? v : 50;
+}
+
 function refreshEvery() {
   let v = null;
   try { v = localStorage.getItem('tickets-refresh'); } catch { /* */ }
