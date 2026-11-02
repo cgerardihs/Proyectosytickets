@@ -95,6 +95,12 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Imágenes pegadas en los correos (v1.17.1)**
+- Las imágenes que vienen dentro del cuerpo de un correo (capturas pegadas, logos e íconos de la firma) ahora se ven en su lugar, en tickets nuevos y en respuestas. Antes se descartaban y quedaba un espacio en blanco o el texto alternativo de la imagen.
+- Se guardan como adjuntos del mensaje, con los mismos permisos que cualquier adjunto del ticket, pero no se listan como archivos sueltos. Una imagen incrustada de más de 3 MB no frena el correo: queda sin mostrarse.
+- Vale para los correos que entran desde esta versión: los que ya se recibieron no recuperan sus imágenes.
+- **Migración 24**: `attachments.inline` y `attachments.content_id`.
+
 **Horas del equipo y capacidad por persona (v1.17.0)**
 - **Informes → Horas** (pestaña nueva): lo que registró cada persona de IT en **tickets**, **proyectos** y **operación**, por semana o por mes, contra sus **horas disponibles** (días hábiles del período × horas por día × % dedicado a IT). Muestra también lo **sin registrar**. Al tocar una persona se ve su hoja de la semana día por día (o, en el mes, en qué registró horas, de mayor a menor), con enlaces a cada ticket, tarea o a Operación.
 - **% dedicado a IT** por persona (100, 75, 50, 25 o 0 %): lo cambia un administrador desde la misma pantalla. Sirve, por ejemplo, para quien reparte su jornada con gestión.

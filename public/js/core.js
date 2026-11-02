@@ -69,7 +69,7 @@ export function sanitize(html, { blockRemote = false } = {}) {
         const v = attr.value.trim();
         const keep =
           (n === 'href' && child.tagName === 'A' && /^(https?:|mailto:|#)/i.test(v)) ||
-          (n === 'src' && child.tagName === 'IMG' && /^(https:|data:image\/(png|jpe?g|gif|webp);)/i.test(v)) ||
+          (n === 'src' && child.tagName === 'IMG' && (/^(https:|data:image\/(png|jpe?g|gif|webp);)/i.test(v) || /^\/api\/attachments\/\d+$/.test(v))) ||
           ['colspan', 'rowspan', 'alt', 'title'].includes(n);
         if (!keep) child.removeAttribute(attr.name);
       }
