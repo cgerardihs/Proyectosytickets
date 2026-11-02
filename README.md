@@ -95,6 +95,15 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Correos que no entraban como tickets (v1.17.2)**
+- **Adjuntos**: se piden de una forma que funciona con cualquier tipo de adjunto. Antes, un correo con un correo adjunto ("Elemento de Outlook") podía hacer fallar el pedido: el correo se reintentaba cada minuto y nunca llegaba a ser ticket.
+- **Correos adjuntos**: se guardan como archivo `.eml`, que se abre con Outlook desde el ticket.
+- **Si los adjuntos fallan 3 veces seguidas**, el correo entra igual, sin adjuntos y con un aviso en el mensaje para verlos en el buzón.
+- **Un adjunto de más de 3 MB** ya no frena el correo (antes, a los 3 intentos, iba a cuarentena): el ticket se crea y queda anotado qué archivo no se guardó. Lo mismo con los vínculos a OneDrive o SharePoint.
+- **Correos ya abiertos en Outlook**: con carpeta de procesados configurada, la app toma todo lo que está en la Bandeja de entrada de los últimos 7 días, aunque alguien lo haya abierto. Antes solo tomaba los no leídos. Sin carpeta de procesados, sigue tomando solo los no leídos.
+- **Imágenes pegadas**: se piden aunque Microsoft indique que el correo no tiene adjuntos (pasa cuando solo trae imágenes en el cuerpo). Completa el arreglo de la v1.17.1.
+- Sin migración.
+
 **Imágenes pegadas en los correos (v1.17.1)**
 - Las imágenes que vienen dentro del cuerpo de un correo (capturas pegadas, logos e íconos de la firma) ahora se ven en su lugar, en tickets nuevos y en respuestas. Antes se descartaban y quedaba un espacio en blanco o el texto alternativo de la imagen.
 - Se guardan como adjuntos del mensaje, con los mismos permisos que cualquier adjunto del ticket, pero no se listan como archivos sueltos. Una imagen incrustada de más de 3 MB no frena el correo: queda sin mostrarse.
