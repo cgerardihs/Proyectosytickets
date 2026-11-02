@@ -23,7 +23,9 @@ export function participants(p) {
  * Carga de un mes. Las horas estimadas de cada proyecto se reparten parejo por día entre su inicio y su fin
  * y, dentro del mes, en partes iguales entre sus participantes.
  */
-export function monthLoad(rows, key, capacity) {
+export function monthLoad(rows, key, capacity, caps = null) {
+  // v1.17: capacidad de cada persona en el mes (disponibles − operación − tickets esperados); si no está, la fija de siempre
+  const capOf = (id) => caps?.[key]?.[id]?.cap ?? capacity;
   const [y, m] = key.split('-').map(Number);
   const a = Date.UTC(y, m - 1, 1);
   const b = Date.UTC(y, m, 1);
@@ -54,14 +56,14 @@ export function monthLoad(rows, key, capacity) {
       x.items.push({ p, hours: h, ends: ending, estimated: Boolean(est), closed });
     }
   }
-  const list = [...people.values()].map((x) => ({ ...x, pct: Math.round((x.hours / capacity) * 100), items: x.items.sort((i, j) => j.hours - i.hours) }))
+  const list = [...people.values()].map((x) => ({ ...x, cap: capOf(x.id), detail: caps?.[key]?.[x.id] || null, pct: capOf(x.id) > 0 ? Math.round((x.hours / capOf(x.id)) * 100) : x.hours ? 999 : 0, items: x.items.sort((i, j) => j.hours - i.hours) }))
     .sort((i, j) => (i.id === NONE) - (j.id === NONE) || j.hours - i.hours || String(userName(i.id)).localeCompare(userName(j.id)));
   const named = list.filter((x) => x.id !== NONE);
   const hours = named.reduce((t, x) => t + x.hours, 0);
   return {
     key, active, ends: ends.sort((i, j) => String(i.end).localeCompare(String(j.end))), people: list, hours, noHours,
-    pct: named.length ? Math.round((hours / (named.length * capacity)) * 100) : 0,
-    over: named.filter((x) => x.hours > capacity).length,
+    pct: named.length && named.reduce((t, x) => t + x.cap, 0) > 0 ? Math.round((hours / named.reduce((t, x) => t + x.cap, 0)) * 100) : 0,
+    over: named.filter((x) => x.hours > x.cap).length,
   };
 }
 
@@ -69,11 +71,11 @@ const level = (pct) => (pct > 100 ? 'over' : pct >= 85 ? 'limit' : 'ok');
 const LEVEL_LABEL = { over: 'Sobrecargado', limit: 'Al límite', ok: 'Con margen' };
 const monthTitle = (key) => { const d = monthStart(key); return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`; };
 
-export function calendarHtml(rows, { today, capacity, from, selected, canEditCapacity, health }) {
+export function calendarHtml(rows, { today, capacity, caps = null, from, selected, canEditCapacity, health }) {
   const todayKey = today.slice(0, 7);
   const keys = Array.from({ length: 12 }, (_, i) => addMonths(from, i));
   const sel = keys.includes(selected) ? selected : keys.includes(todayKey) ? todayKey : keys[0];
-  const loads = keys.map((k) => monthLoad(rows, k, capacity));
+  const loads = keys.map((k) => monthLoad(rows, k, capacity, caps));
   const cur = loads[keys.indexOf(sel)];
   const undated = rows.filter((p) => !p.start || !p.end).length;
   const range = `${monthTitle(keys[0])} – ${monthTitle(keys[11])}`;
@@ -100,8 +102,8 @@ export function calendarHtml(rows, { today, capacity, from, selected, canEditCap
     const name = x.id === NONE ? 'Sin responsable' : userName(x.id) || 'Usuario';
     return `<div class="cal-person">
       <div class="cal-ph">${x.id === NONE ? `<span class="avatar none" style="width:26px;height:26px">${icon('user', 14)}</span>` : avatar(x.id, 26)}<b class="ellip">${esc(name)}</b><span class="grow"></span>
-        ${x.id === NONE ? '' : `<b class="tnum">${fmtNum(x.hours)} h</b><span class="lvl lv-${lv}" title="${LEVEL_LABEL[lv]}">${x.pct}%</span>`}</div>
-      ${x.id === NONE ? '<p class="hint" style="margin:0">Proyectos sin responsable ni tareas asignadas: sus horas no se cuentan en la carga.</p>' : `<span class="cal-meter lv-${lv}"><span style="width:${Math.min(100, x.pct)}%"></span></span>`}
+        ${x.id === NONE ? '' : `<b class="tnum" title="${x.detail ? esc(`Para proyectos: ${fmtNum(x.cap)} h = ${fmtNum(x.detail.available)} h disponibles (${x.detail.it_pct} % a IT) − ${fmtNum(x.detail.ops)} h de operación − ${fmtNum(x.detail.tickets)} h de tickets (promedio de 3 meses)`) : ''}">${fmtNum(x.hours)} / ${fmtNum(x.cap)} h</b><span class="lvl lv-${lv}" title="${LEVEL_LABEL[lv]}">${x.pct > 998 ? '+' : `${x.pct}%`}</span>`}</div>
+      ${x.id === NONE ? '<p class="hint" style="margin:0">Proyectos sin responsable ni tareas asignadas: sus horas no se cuentan en la carga.</p>' : `<span class="cal-meter lv-${lv}"><span style="width:${Math.min(100, x.pct)}%"></span></span>${x.detail ? `<p class="hint cal-capline">${fmtNum(x.detail.available)} h disponibles − ${fmtNum(x.detail.ops)} h de operación − ${fmtNum(x.detail.tickets)} h de tickets = <b>${fmtNum(x.cap)} h</b> para proyectos</p>` : ''}`}
       <div class="cal-chips">${x.items.map(chip).join('')}</div></div>`;
   };
 
@@ -130,9 +132,9 @@ export function calendarHtml(rows, { today, capacity, from, selected, canEditCap
         ${cur.people.length ? cur.people.map(person).join('') : '<p class="muted small">Nadie tiene proyectos en este mes.</p>'}
         <div class="cal-cap">
           ${canEditCapacity
-    ? `<label class="mini-field"><span>Capacidad para proyectos</span><span class="row gap"><input class="input sm inline-num" type="number" min="1" max="744" step="1" data-cal-cap value="${capacity}"> h por persona por mes <button type="button" class="btn sm" data-cal-cap-save>Guardar</button></span></label>`
-    : `<span class="muted small">Capacidad para proyectos: <b>${capacity} h</b> por persona por mes.</span>`}
-          <p class="hint" style="margin:4px 0 0">El resto de la jornada queda para soporte. Las horas estimadas de cada proyecto se reparten parejo por día entre su inicio y su fin, y en partes iguales entre el responsable y quienes tienen tareas asignadas.</p>
+    ? `<label class="mini-field"><span>Capacidad fija (para quien no tiene horas calculadas)</span><span class="row gap"><input class="input sm inline-num" type="number" min="1" max="744" step="1" data-cal-cap value="${capacity}"> h por persona por mes <button type="button" class="btn sm" data-cal-cap-save>Guardar</button></span></label>`
+    : ''}
+          <p class="hint" style="margin:4px 0 0">${caps ? 'La capacidad de cada persona para proyectos es lo que le queda de sus horas disponibles (días hábiles × horas por día × % dedicado a IT, que se cambia en Informes → Horas) después de restar la operación planificada y el promedio de horas en tickets de los últimos 3 meses. ' : `Capacidad para proyectos: ${capacity} h por persona por mes. `}Las horas estimadas de cada proyecto se reparten parejo por día entre su inicio y su fin, y en partes iguales entre el responsable y quienes tienen tareas asignadas.</p>
         </div>
       </div>
     </div>`;

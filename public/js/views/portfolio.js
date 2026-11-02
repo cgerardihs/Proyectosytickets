@@ -244,7 +244,7 @@ export async function render(el, _p, query) {
   function drawCalendar(host, rows) {
     const from = ui.calFrom || today.slice(0, 7);
     host.innerHTML = calendarHtml(rows, {
-      today, capacity: data.capacity || 80, from, selected: ui.calSel || today.slice(0, 7), canEditCapacity: isAdmin(), health: HEALTH,
+      today, capacity: data.capacity || 80, caps: data.caps || null, from, selected: ui.calSel || today.slice(0, 7), canEditCapacity: isAdmin(), health: HEALTH,
     });
   }
 

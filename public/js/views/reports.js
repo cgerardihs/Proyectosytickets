@@ -3,7 +3,7 @@ import { setCrumbs } from '../app.js';
 import { hbars } from '../charts.js';
 
 // v1.14: Informes con pestañas. Roadmap, Calendario y Explorador se pueden maximizar (botón, tecla F; Esc vuelve).
-const TABS = [['summary', 'Resumen', 'chart'], ['roadmap', 'Roadmap', 'gantt'], ['calendar', 'Calendario', 'calendar'], ['explorer', 'Explorador', 'layers']];
+const TABS = [['summary', 'Resumen', 'chart'], ['roadmap', 'Roadmap', 'gantt'], ['calendar', 'Calendario', 'calendar'], ['explorer', 'Explorador', 'layers'], ['hours', 'Horas', 'timer']];
 
 /** Pantalla completa para la pestaña: oculta el menú, la barra superior y los encabezados. */
 export function maximizer(host) {
@@ -28,7 +28,7 @@ export async function render(el, _p, query) {
   setCrumbs([{ label: 'Informes' }]);
   const tab = TABS.some((t) => t[0] === query.tab) ? query.tab : 'summary';
   el.innerHTML = `<div class="page rp-page ${tab === 'summary' ? '' : 'wide'}">
-    <div class="page-head rp-head"><div><h1>Informes</h1><p class="muted">${{ summary: 'Indicadores de la mesa de ayuda en el período elegido.', roadmap: 'Todos los proyectos en una línea de tiempo, con etapas, desvíos y la carga del equipo.', calendar: 'Fechas de proyectos, etapas, tareas, vencimientos de SLA, sprints, sistemas críticos y feriados.', explorer: 'Armá tu propia grilla mezclando tickets, proyectos, tareas, contactos y horas, con cualquier campo.' }[tab]}</p></div></div>
+    <div class="page-head rp-head"><div><h1>Informes</h1><p class="muted">${{ hours: 'En qué se va el tiempo de cada persona de IT: tickets, proyectos y operación, contra sus horas disponibles.', summary: 'Indicadores de la mesa de ayuda en el período elegido.', roadmap: 'Todos los proyectos en una línea de tiempo, con etapas, desvíos y la carga del equipo.', calendar: 'Fechas de proyectos, etapas, tareas, vencimientos de SLA, sprints, sistemas críticos y feriados.', explorer: 'Armá tu propia grilla mezclando tickets, proyectos, tareas, contactos y horas, con cualquier campo.' }[tab]}</p></div></div>
     <div class="tabs rp-tabs">${TABS.map(([k, l, ic]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${icon(ic, 14)} ${l}</button>`).join('')}</div>
     <div data-tab-body></div></div>`;
   el.querySelector('.rp-tabs').addEventListener('click', (e) => {
@@ -37,7 +37,7 @@ export async function render(el, _p, query) {
   });
   const body = el.querySelector('[data-tab-body]');
   if (tab === 'summary') return renderSummary(body, query);
-  const mod = await import({ roadmap: './reports-roadmap.js', calendar: './reports-calendar.js', explorer: './reports-explorer.js' }[tab]);
+  const mod = await import({ roadmap: './reports-roadmap.js', calendar: './reports-calendar.js', explorer: './reports-explorer.js', hours: './reports-hours.js' }[tab]);
   const stopMax = maximizer(body);
   const stop = await mod.render(body, query);
   return () => { stopMax(); if (typeof stop === 'function') stop(); };

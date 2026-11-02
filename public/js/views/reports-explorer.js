@@ -87,7 +87,7 @@ const SPECIFIC = {
     ['active', 'Activo', 'bool', (r) => r.active !== false], ['tickets', 'Tickets', 'num', (r) => r.tickets, 'sum'], ['open', 'Tickets abiertos', 'num', (r) => r.open_tickets, 'sum'], ['created_at', 'Alta', 'datetime', (r) => r.created_at],
   ],
   time: [
-    ['user', 'Persona', 'text', (r) => r.user_name], ['hours', 'Horas', 'num', (r) => hours(r.minutes), 'sum'], ['note', 'Nota', 'text', (r) => r.note], ['date', 'Fecha', 'date', (r) => day(r.spent_on)],
+    ['user', 'Persona', 'text', (r) => r.user_name], ['origin', 'Origen', 'text', (r) => r.origin], ['routine', 'Tarea de operación', 'text', (r) => r.routine], ['hours', 'Horas', 'num', (r) => hours(r.minutes), 'sum'], ['note', 'Nota', 'text', (r) => r.note], ['date', 'Fecha', 'date', (r) => day(r.spent_on)],
     ['ticket', 'Ticket', 'text', (r) => (r.ticket ? `#${r.ticket}` : null)], ['issue', 'Tarea', 'text', (r) => r.issue], ['project', 'Proyecto', 'text', (r) => r.project], ['created_at', 'Cargado', 'datetime', (r) => r.created_at],
   ],
 };
@@ -97,7 +97,7 @@ const PRESETS = [
   { id: 'p2', name: 'Carga por responsable', config: { sources: ['ticket', 'project', 'task'], mode: 'union', cols: ['c.owner', 'c.type', 'c.id', 'c.title', 'c.status', 'c.due', 'c.hours'], filters: { 'c.open': 'sí' }, group: 'c.owner', sort: { k: 'c.due', dir: 1 } } },
   { id: 'p3', name: 'Tickets con su proyecto', config: { sources: ['ticket', 'project', 'contact'], mode: 'join:ticket', cols: ['ticket.number', 'ticket.subject', 'ticket.contact', 'contact.area', 'ticket.status', 'project.key', 'project.name', 'project.progress', 'project.health'], filters: {}, group: '', sort: null } },
   { id: 'p4', name: 'Proyectos por salud', config: { sources: ['project'], mode: 'union', cols: ['project.key', 'project.name', 'project.lead', 'project.progress', 'project.end', 'project.baseline_end', 'project.deviation', 'project.estimated', 'project.hours'], filters: {}, group: 'project.health', sort: { k: 'project.end', dir: 1 } } },
-  { id: 'p5', name: 'Horas por persona', config: { sources: ['time'], mode: 'union', period: '30', cols: ['time.user', 'time.date', 'time.ticket', 'time.issue', 'time.project', 'time.note', 'time.hours'], filters: {}, group: 'time.user', sort: { k: 'time.date', dir: -1 } } },
+  { id: 'p5', name: 'Horas por persona', config: { sources: ['time'], mode: 'union', period: '30', cols: ['time.user', 'time.date', 'time.origin', 'time.ticket', 'time.issue', 'time.project', 'time.routine', 'time.note', 'time.hours'], filters: {}, group: 'time.user', sort: { k: 'time.date', dir: -1 } } },
 ];
 
 function catalog(customKeys) {

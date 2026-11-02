@@ -95,6 +95,14 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Horas del equipo y capacidad por persona (v1.17.0)**
+- **Informes → Horas** (pestaña nueva): lo que registró cada persona de IT en **tickets**, **proyectos** y **operación**, por semana o por mes, contra sus **horas disponibles** (días hábiles del período × horas por día × % dedicado a IT). Muestra también lo **sin registrar**. Al tocar una persona se ve su hoja de la semana día por día (o, en el mes, en qué registró horas, de mayor a menor), con enlaces a cada ticket, tarea o a Operación.
+- **% dedicado a IT** por persona (100, 75, 50, 25 o 0 %): lo cambia un administrador desde la misma pantalla. Sirve, por ejemplo, para quien reparte su jornada con gestión.
+- **Calendario de Informes**: capa nueva **Operación**, con cada vez que toca una tarea repetitiva (tachada si ya se hizo). Sale prendida.
+- **Explorador**: las horas registradas tienen las columnas **Origen** (Ticket, Proyecto u Operación) y **Tarea de operación**. La vista "Horas por persona" ya las incluye.
+- **Portfolio → Calendario**: la capacidad para proyectos ya no es la misma para todos. Cada persona tiene la suya, mes a mes: horas disponibles − operación planificada (sale de las rutinas, con los turnos) − horas en tickets (promedio de los 3 meses anteriores). Debajo de cada persona se ve la cuenta. La capacidad fija sigue configurada solo para quien no tiene horas calculadas.
+- **Migración 23**: `users.it_pct` (por defecto 100).
+
 **Operación de IT (v1.16.0)** — menú Operación
 - Un módulo nuevo para lo que el equipo hace y no es ni un ticket ni un proyecto: backups, controles, parches, altas y bajas, renovaciones. Cada **tarea** dice qué hay que hacer, quién (si son varias personas, se turnan), cuánto lleva, hasta qué hora y los pasos a seguir.
 - **Repetición**: una vez, diaria (con o sin días hábiles), semanal (los días que se elijan), mensual (el día N, o el primer/segundo/tercer/cuarto/último lunes… o día hábil, todos los meses o cada 2, 3, 6 o 12) y anual. Si la fecha cae en fin de semana o feriado (los del horario de atención), se deja, se adelanta o se pasa al día hábil siguiente. Al cargarla se ven las próximas 8 fechas.

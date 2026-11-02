@@ -9,6 +9,7 @@ const LAYERS = [
   ['sla', 'Tickets: vence el SLA', '#d97706'],
   ['sprint', 'Sprints', '#0f766e'],
   ['critical', 'Sistemas críticos (vuelta estimada)', '#475569'],
+  ['ops', 'Operación (tareas repetitivas)', '#0d9488'],
   ['holiday', 'Feriados', '#ea580c'],
 ];
 const COLOR = Object.fromEntries(LAYERS.map(([k, , c]) => [k, c]));
@@ -27,11 +28,11 @@ export async function render(el) {
   try { saved = JSON.parse(localStorage.getItem(LS) || '{}'); } catch { /* */ }
   const first = await api('/reports/calendar');
   const today = first.today;
-  const ui = { view: saved.view || 'm', person: saved.person || '', on: new Set(saved.on || LAYERS.filter(([k]) => k !== 'sprint').map(([k]) => k)), month: `${today.slice(0, 7)}-01`, week: monday(today) };
+  const ui = { view: saved.view || 'm', person: saved.person || '', on: new Set(saved.on ? [...saved.on, ...(saved.v117 ? [] : ['ops'])] : LAYERS.filter(([k]) => k !== 'sprint').map(([k]) => k)), month: `${today.slice(0, 7)}-01`, week: monday(today) };
   const cache = new Map(); // rango → eventos
   cache.set(`${first.from}|${first.to}`, first.events);
   const expandedDays = new Set();
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify({ view: ui.view, person: ui.person, on: [...ui.on] })); } catch { /* */ } };
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify({ view: ui.view, person: ui.person, on: [...ui.on], v117: true })); } catch { /* */ } };
 
   el.innerHTML = `<div class="rp-card">
     <div class="rp-bar">
@@ -64,7 +65,7 @@ export async function render(el) {
     return r.events;
   }
   const personOk = (e) => !ui.person || !e.user_id || String(e.user_id) === String(ui.person);
-  const href = (e) => (e.ticket ? `#/tickets/${e.ticket}` : e.issue ? `#/issue/${encodeURIComponent(e.issue)}` : e.project ? `#/projects/${encodeURIComponent(e.project)}` : '');
+  const href = (e) => (e.ops ? '#/ops' : e.ticket ? `#/tickets/${e.ticket}` : e.issue ? `#/issue/${encodeURIComponent(e.issue)}` : e.project ? `#/projects/${encodeURIComponent(e.project)}` : '');
   const evHtml = (e, { cont = false } = {}) => {
     const h = href(e);
     const tag = h ? 'a' : 'span';
