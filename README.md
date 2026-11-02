@@ -95,6 +95,16 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Operación de IT (v1.16.0)** — menú Operación
+- Un módulo nuevo para lo que el equipo hace y no es ni un ticket ni un proyecto: backups, controles, parches, altas y bajas, renovaciones. Cada **tarea** dice qué hay que hacer, quién (si son varias personas, se turnan), cuánto lleva, hasta qué hora y los pasos a seguir.
+- **Repetición**: una vez, diaria (con o sin días hábiles), semanal (los días que se elijan), mensual (el día N, o el primer/segundo/tercer/cuarto/último lunes… o día hábil, todos los meses o cada 2, 3, 6 o 12) y anual. Si la fecha cae en fin de semana o feriado (los del horario de atención), se deja, se adelanta o se pasa al día hábil siguiente. Al cargarla se ven las próximas 8 fechas.
+- **Agenda**: vencidas, hoy, lo que queda de la semana y las próximas dos semanas (las que tienen aviso anticipado aparecen antes). Filtros Mías / Todo el equipo, persona y categoría; se recuerdan. Al costado, las horas de operación de la semana por persona.
+- **Registrar**: al tocar una tarea se tildan los pasos, se indica el tiempo dedicado, quién la hizo, el resultado (Bien, Con observaciones o Falló) y una nota. Si falló, se puede abrir un **ticket** asignado a quien la hizo. También se puede **omitir** con motivo o volver a pendiente. Las diarias que pasan sin registrar se consideran omitidas; las demás quedan vencidas.
+- **Horas**: el tiempo registrado se guarda en la misma tabla que las horas de tickets y proyectos, así que suma en las horas de cada persona.
+- **Rutinas**: la lista de tareas con la próxima fecha, los responsables, el tiempo y las últimas ocurrencias en colores. Se pausan sin perder el historial. Las cambia o elimina quien la creó o un supervisor; con registros, solo se pausan.
+- **Inicio** muestra una alerta con lo vencido y lo de hoy, y **Mi trabajo** suma una tarjeta Operación.
+- **Migración 22**: tablas `ops_routines` y `ops_records` y la columna `time_entries.ops_record_id`. Entran en el respaldo.
+
 **Editar notas privadas (v1.15.1)**
 - Las notas privadas de un ticket tienen un lápiz para editarlas. Las edita quien la escribió o un supervisor o administrador. Las respuestas al usuario y los reenvíos no se editan (ya salieron por correo), y tampoco las notas automáticas.
 - La nota queda marcada "(editada)"; al pasar el mouse se ve quién la editó y cuándo. En el historial del ticket figura "editó una nota privada".

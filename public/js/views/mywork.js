@@ -5,7 +5,8 @@ import { typeIcon, prioIcon, issuePill, openIssueModal } from './issue.js';
 export async function render(el) {
   setCrumbs([{ label: 'Mi trabajo' }]);
   const draw = async () => {
-    const w = await api('/my-work');
+    const [w, ops] = await Promise.all([api('/my-work'), api('/ops/mine').catch(() => null)]);
+    const opsList = ops ? [...ops.late.map((i) => ({ ...i, late: true })), ...ops.due_today] : [];
     const today = new Date().toISOString().slice(0, 10);
     // v1.15: las tareas se agrupan por su estado (las etapas, por el tipo de estado del flujo)
     const late = (i) => i.due_date && String(i.due_date).slice(0, 10) < today;
@@ -32,7 +33,10 @@ export async function render(el) {
               <span class="row gap">${typeIcon(i.type, 15)}<b style="color:${esc(i.project_color)}">${esc(i.key)}</b><span class="ellip">${esc(i.title)}</span></span>
               <span class="row gap">${prioIcon(i.priority, 14)}${issuePill(i)}${i.due_date ? `<span class="small muted">${fmtShortDate(String(i.due_date).slice(0, 10))}</span>` : ''}<span class="small muted">${esc(i.project_name)}</span></span></li>`).join('')}</ul>`).join('') : emptyState('Sin tareas asignadas', '', 'checkbox')}
         </section>
-      </div></div>`;
+      </div>
+      ${opsList.length ? `<section class="card op-mine"><h3>${icon('refresh', 16)} Operación <span class="muted">${opsList.length}</span><a class="link-btn" href="#/ops" style="margin-left:auto">Ver la agenda</a></h3>
+        <ul class="work-list">${opsList.map((i) => `<li><a href="#/ops">${esc(i.name)}</a><span class="row gap"><span class="small ${i.late ? 'danger-text' : 'muted'}">${i.late ? `vencida el ${i.date.slice(8)}/${i.date.slice(5, 7)}` : `hoy hasta las ${esc(i.due_time)} hs`}</span></span></li>`).join('')}</ul></section>` : ''}
+      </div>`;
   };
   await draw();
   el.addEventListener('click', (e) => {

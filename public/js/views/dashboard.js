@@ -53,6 +53,7 @@ export async function render(el, _p, query) {
     </div>
     <div class="crit-slot">${criticalPanelHtml(crit)}</div>
     ${alertsHtml(h, mineQ)}
+    <div class="op-alert-slot"></div>
     <div class="kpis six">
       ${kpi('Abiertos asignados', fmtNum(h.kpis.open), `#/tickets?view=unresolved${mineQ}`)}
       ${kpi('Antigüedad promedio', `${fmtNum(h.kpis.avg_age)} d`, null, h.kpis.avg_age > h.config.amber_days ? 'danger' : h.kpis.avg_age > h.config.green_days ? 'warn' : 'ok')}
@@ -102,6 +103,14 @@ export async function render(el, _p, query) {
     if (data) wireCriticalPanel(critSlot, data, async () => drawCrit(await api('/critical-systems').catch(() => null)));
   };
   drawCrit(crit);
+  // Operación (v1.16): lo vencido y lo de hoy de quien entra, como una alerta más
+  api('/ops/mine').then((o) => {
+    const slot = el.querySelector('.op-alert-slot');
+    if (!slot || (!o.late.length && !o.due_today.length)) return;
+    const parts = [o.late.length ? `${o.late.length} vencida${o.late.length === 1 ? '' : 's'}` : '', o.due_today.length ? `${o.due_today.length} para hoy` : ''].filter(Boolean);
+    const first = (o.late[0] || o.due_today[0]).name;
+    slot.innerHTML = `<div class="alerts"><a class="alert ${o.late.length ? 'warn' : 'info'}" href="#/ops">${icon('refresh', 20)}<div><b>Operación: ${esc(parts.join(' y '))}</b><span>${esc(first)}${o.late.length + o.due_today.length > 1 ? ' y otras' : ''}</span></div></a></div>`;
+  }).catch(() => {});
   el.querySelector('#agentSel')?.addEventListener('change', (e) => {
     location.hash = `#/?scope=team${e.target.value ? `&agent=${e.target.value}` : ''}`;
   });

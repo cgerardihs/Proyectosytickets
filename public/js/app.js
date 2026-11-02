@@ -10,6 +10,7 @@ const ROUTES = [
   [/^#\/tickets\/(\d+)$/, 'tickets', () => import('./views/ticket.js')],
   [/^#\/tickets$/, 'tickets', () => import('./views/tickets.js')],
   [/^#\/my-work$/, 'mywork', () => import('./views/mywork.js')],
+  [/^#\/ops$/, 'ops', () => import('./views/ops.js')],
   [/^#\/projects$/, 'projects', () => import('./views/projects.js')],
   [/^#\/portfolio$/, 'portfolio', () => import('./views/portfolio.js')],
   [/^#\/projects\/([A-Za-z0-9]+)(?:\/(\w+))?$/, 'projects', () => import('./views/project.js')],
@@ -83,6 +84,7 @@ function shell() {
       <a data-nav="home" href="#/" title="Inicio">${icon('home', 20)}<span>Inicio</span></a>
       <a data-nav="tickets" href="#/tickets" title="Tickets">${icon('ticket', 20)}<span>Tickets</span></a>
       <a data-nav="mywork" href="#/my-work" title="Mi trabajo">${icon('mywork', 20)}<span>Mi trabajo</span></a>
+      <a data-nav="ops" href="#/ops" title="Operación: tareas repetitivas del equipo">${icon('refresh', 20)}<span>Operación</span></a>
       <a data-nav="projects" href="#/projects" title="Proyectos">${icon('projects', 20)}<span>Proyectos</span></a>
       ${state.meta.canPortfolio ? `<a data-nav="portfolio" href="#/portfolio" title="Portfolio y roadmap">${icon('portfolio', 20)}<span>Portfolio</span></a>` : ''}
       <a data-nav="contacts" href="#/contacts" title="Contactos">${icon('users', 20)}<span>Contactos</span></a>
