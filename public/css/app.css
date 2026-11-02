@@ -1413,3 +1413,9 @@ table.ex-g .na { color: #c0c5cd; }
 .toast-action { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; padding: 0 0 0 6px; }
 .toast-action:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .tsk-check, .tsk-check::after, .tsk-dist span { transition: none; } }
+
+/* ---------- v1.15.1: editar notas privadas ---------- */
+.msg-edit { color: var(--muted); opacity: .6; margin: -4px -6px -4px 0; }
+.msg:hover .msg-edit, .msg-edit:focus-visible { opacity: 1; }
+.msg-edit:hover { color: var(--text); }
+.msg-edited { cursor: help; }

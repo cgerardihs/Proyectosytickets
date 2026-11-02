@@ -10,7 +10,7 @@ import { ticketCriticalHtml, wireTicketCritical } from '../critical.js';
 const TASK_STATE_TEXT = { standby: 'Standby', in_progress: 'En curso', test: 'Test', done: 'Finalizada' };
 
 const ACTION_TEXT = {
-  created: 'creó el ticket', replied: 'respondió al contacto', note: 'agregó una nota privada', forwarded: 'reenvió el ticket',
+  created: 'creó el ticket', replied: 'respondió al contacto', note: 'agregó una nota privada', note_edited: 'editó una nota privada', forwarded: 'reenvió el ticket',
   reopened: 'reabrió el ticket', spam: 'lo marcó como spam', notspam: 'lo quitó de spam', trashed: 'lo envió a la papelera', restored: 'lo restauró',
   merged: 'lo combinó en otro ticket', merged_from: 'combinó otro ticket en este', time: 'registró tiempo', issue_linked: 'lo vinculó a una tarea de proyecto', project_linked: 'lo vinculó a un proyecto de desarrollo', project_unlinked: 'lo desvinculó de un proyecto', dev_rule: 'Regla de proyecto de desarrollo',
   resolved_by_contact: 'El contacto lo marcó como resuelto', auto_closed: 'Se cerró automáticamente',
@@ -231,6 +231,37 @@ export async function render(el, [num]) {
     if (composer) openComposer(composer.kind, true);
   }
 
+  /** Notas privadas escritas por un agente: las edita quien la escribió o un supervisor (v1.15.1). */
+  function canEditNote(m) {
+    return m.kind === 'note' && m.author_user_id && !m.meta?.auto && !m.meta?.dev_cycle && (m.author_user_id === state.me.id || isManager());
+  }
+
+  function editNote(id) {
+    const m = d.messages.find((x) => x.id === id);
+    if (!m) return;
+    const md = modal({
+      title: 'Editar nota privada',
+      wide: true,
+      body: `<p class="muted small" style="margin-top:0">Solo la ven los agentes. Al guardar, el texto anterior se reemplaza y no queda guardado; en el historial figura quién la editó y cuándo.</p><div class="ed"></div>`,
+      footer: '<button class="btn" data-close>Cancelar</button><button class="btn primary" data-ok>Guardar cambios</button>',
+    });
+    const ed = richEditor(md.el.querySelector('.ed'), { value: m.body_html, attachments: false, minHeight: 120, onSubmit: () => save() });
+    ed.focus();
+    const btn = md.el.querySelector('[data-ok]');
+    async function save() {
+      if (ed.isEmpty() && !m.attachments?.length) return toast('La nota no puede quedar vacía', 'error');
+      btn.disabled = true;
+      try {
+        const r = await api(`/tickets/${d.ticket.number}/messages/${m.id}`, { method: 'PATCH', body: { body_html: ed.getHTML() } });
+        md.close();
+        d = r.detail;
+        draw();
+        toast('Nota actualizada');
+      } catch (e) { toastError(e); btn.disabled = false; }
+    }
+    btn.addEventListener('click', save);
+  }
+
   function msgHtml(m) {
     const isAgent = m.kind !== 'customer';
     const auto = Boolean(m.meta?.auto);
@@ -244,7 +275,9 @@ export async function render(el, [num]) {
       <div class="msg-body">
         <header><b>${esc(who)}</b>${label ? `<span class="msg-kind">${label}</span>` : ''}${auto && m.meta.rule_name ? `<span class="muted small">Regla: ${esc(m.meta.rule_name)}${m.meta.used_ai ? ' · adaptada por IA' : ''}</span>` : ''}${m.meta?.ai_assisted ? '<span class="msg-kind ai">Redactada con IA</span>' : ''}
           ${m.kind === 'forward' && m.to_emails?.length ? `<span class="muted small">a ${esc(m.to_emails.join(', '))}</span>` : ''}
-          <time title="${esc(fmtDateTime(m.created_at))}">${relTime(m.created_at)}</time></header>
+          ${m.meta?.edited_at ? `<span class="muted small msg-edited" title="Editada por ${esc(userName(m.meta.edited_by) || 'un agente')} el ${esc(fmtDateTime(m.meta.edited_at))}">(editada)</span>` : ''}
+          <time title="${esc(fmtDateTime(m.created_at))}">${relTime(m.created_at)}</time>
+          ${canEditNote(m) ? `<button type="button" class="icon-btn sm msg-edit" data-edit-note="${m.id}" title="Editar la nota" aria-label="Editar la nota">${icon('edit', 14)}</button>` : ''}</header>
         ${(() => { const body = sanitize(m.body_html, { blockRemote: m.kind === 'customer' }); return `${body.includes('data-remote-src') ? `<div class="remote-note">${icon('shield', 13)} Las imágenes externas de este correo no se cargaron (pueden avisarle al remitente que lo abriste). <button type="button" class="link-btn" data-show-imgs>Mostrar imágenes</button></div>` : ''}<div class="msg-html">${body}</div>`; })()}
         ${m.attachments?.length ? `<div class="atts">${m.attachments.map((a) => `<a class="chip" href="/api/attachments/${a.id}" target="_blank" rel="noopener">${icon('clip', 12)} ${esc(a.filename)} <small>${fmtSize(a.size)}</small></a>`).join('')}</div>` : ''}
       </div>
@@ -433,6 +466,8 @@ export async function render(el, [num]) {
   }
 
   el.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('[data-edit-note]');
+    if (editBtn) return editNote(Number(editBtn.dataset.editNote));
     const imgs = e.target.closest('[data-show-imgs]');
     if (imgs) {
       const body = imgs.closest('.msg-body');
