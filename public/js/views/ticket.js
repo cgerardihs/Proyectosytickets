@@ -6,6 +6,9 @@ import {
 import { setCrumbs, refreshMeta } from '../app.js';
 import { ticketCriticalHtml, wireTicketCritical } from '../critical.js';
 
+// Estados de las tareas de proyecto (v1.15)
+const TASK_STATE_TEXT = { standby: 'Standby', in_progress: 'En curso', test: 'Test', done: 'Finalizada' };
+
 const ACTION_TEXT = {
   created: 'creó el ticket', replied: 'respondió al contacto', note: 'agregó una nota privada', forwarded: 'reenvió el ticket',
   reopened: 'reabrió el ticket', spam: 'lo marcó como spam', notspam: 'lo quitó de spam', trashed: 'lo envió a la papelera', restored: 'lo restauró',
@@ -208,7 +211,7 @@ export async function render(el, [num]) {
         <div class="devices-slot">${devicesHtml()}</div>
         <div class="card">
           <h3>${icon('projects', 15)} Tareas de proyecto</h3>
-          ${d.issues.length ? `<ul class="mini-list">${d.issues.map((i) => `<li class="row"><a href="#/issue/${esc(i.key)}"><b style="color:${esc(i.color)}">${esc(i.key)}</b> ${esc(i.title)}</a><small class="st-${esc(i.status_kind)}">${esc(i.status_name || '')}</small><button class="icon-btn sm" data-unlink="${i.id}" title="Desvincular">${icon('x', 12)}</button></li>`).join('')}</ul>` : '<p class="muted small">Sin tareas vinculadas.</p>'}
+          ${d.issues.length ? `<ul class="mini-list">${d.issues.map((i) => `<li class="row"><a href="#/issue/${esc(i.key)}"><b style="color:${esc(i.color)}">${esc(i.key)}</b> ${esc(i.title)}</a><small class="st-${esc(i.status_kind)}">${esc(i.type === 'epic' ? i.status_name || '' : TASK_STATE_TEXT[i.task_state] || i.status_name || '')}</small><button class="icon-btn sm" data-unlink="${i.id}" title="Desvincular">${icon('x', 12)}</button></li>`).join('')}</ul>` : '<p class="muted small">Sin tareas vinculadas.</p>'}
           <div class="row gap"><button class="btn sm" data-act="create-issue">${icon('plus', 13)} Crear tarea</button><button class="btn sm" data-act="link-issue">${icon('link', 13)} Vincular existente</button></div>
         </div>
         <div class="card">

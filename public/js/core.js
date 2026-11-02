@@ -295,7 +295,8 @@ export function icon(name, size = 18, cls = '') {
 }
 
 // ---------- Toast ----------
-export function toast(msg, type = 'ok') {
+/** Aviso breve. action (opcional): { label, onClick } agrega un botón (ej. Deshacer) y deja el aviso unos segundos más. */
+export function toast(msg, type = 'ok', { action } = {}) {
   let box = document.getElementById('toasts');
   if (!box) {
     box = document.createElement('div');
@@ -305,10 +306,19 @@ export function toast(msg, type = 'ok') {
   const t = document.createElement('div');
   t.className = `toast ${type}`;
   t.setAttribute('role', 'status');
-  t.innerHTML = `${icon(type === 'error' ? 'alert' : 'check', 16)}<span>${esc(msg)}</span>`;
+  t.innerHTML = `${icon(type === 'error' ? 'alert' : 'check', 16)}<span>${esc(msg)}</span>${action ? `<button type="button" class="toast-action">${esc(action.label)}</button>` : ''}`;
+  const ms = action ? 6000 : 3800;
+  const out = setTimeout(() => t.classList.add('out'), ms);
+  const gone = setTimeout(() => t.remove(), ms + 500);
+  if (action) {
+    t.querySelector('.toast-action').addEventListener('click', () => {
+      clearTimeout(out);
+      clearTimeout(gone);
+      t.remove();
+      action.onClick();
+    }, { once: true });
+  }
   box.appendChild(t);
-  setTimeout(() => t.classList.add('out'), 3800);
-  setTimeout(() => t.remove(), 4300);
 }
 export const toastError = (e) => toast(e?.message || String(e), 'error');
 

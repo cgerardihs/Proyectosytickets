@@ -5,7 +5,9 @@ import {
 import { PSTATUS, portfolioFieldsHtml, readPortfolioFields, phaseDateIssues } from './project-form.js';
 import { setCrumbs, refreshMeta } from '../app.js';
 import { sortable } from '../dnd.js';
-import { ISSUE_TYPES, ISSUE_PRIO, typeIcon, prioIcon, statusPill, openIssueModal, openCreateIssue } from './issue.js';
+import {
+  ISSUE_TYPES, ISSUE_PRIO, typeIcon, prioIcon, statusPill, openIssueModal, openCreateIssue, TASK_STATES, taskStateLabel, issuePill, isIssueDone,
+} from './issue.js';
 import { lineChart, columns, hbars, stackBar } from '../charts.js';
 
 const TABS = [
@@ -54,10 +56,11 @@ export async function render(el, [key, tabArg]) {
 
 // ---------- Tarjeta y fila ----------
 /** Tarjeta de una etapa en el tablero: número, nombre, fechas y avance. */
-function phaseCard(e, order = 0) {
+function phaseCard(e, order = 0, { fixed = false } = {}) {
   const pct = e.child_count ? Math.round((e.child_done / e.child_count) * 100) : e.status_kind === 'done' ? 100 : Number(e.progress || 0);
   const d = (x) => (x ? fmtShortDate(String(x).slice(0, 10)) : '');
-  return `<div class="kcard phase-card" draggable="true" data-id="${e.id}" data-key="${esc(e.key)}">
+  // fixed: en la franja de etapas del tablero (v1.15) no se arrastra y muestra su estado del flujo
+  return `<div class="kcard phase-card ${fixed ? 'tsk-phase' : ''}" ${fixed ? '' : 'draggable="true"'} data-id="${e.id}" data-key="${esc(e.key)}">${fixed ? `<div class="tsk-phase-st">${statusPill(e.status_name, e.status_kind)}</div>` : ''}
     <div class="pc-top"><span class="pc-num">Etapa ${order + 1}</span>${e.start_date || e.due_date ? `<span class="pc-dates">${d(e.start_date)} → ${d(e.due_date)}</span>` : ''}</div>
     <div class="kc-title">${esc(e.title)}</div>
     <div class="progress"><span style="width:${pct}%"></span></div>
@@ -68,16 +71,16 @@ function phaseCard(e, order = 0) {
 
 function card(i, epicsById) {
   const epic = i.parent_id && epicsById[i.parent_id];
-  return `<div class="kcard" draggable="true" data-id="${i.id}" data-key="${esc(i.key)}">
+  return `<div class="kcard ${i.task_state === 'done' ? 'tsk-done' : ''}" draggable="true" data-id="${i.id}" data-key="${esc(i.key)}">
     <div class="kc-title">${esc(i.title)}</div>
     ${epic ? `<span class="epic-chip">${esc(epic.title)}</span>` : ''}
     ${(i.labels || []).length ? `<div class="kc-labels">${i.labels.map((l) => `<span class="tag">${esc(l)}</span>`).join('')}</div>` : ''}
     <div class="kc-foot">
-      ${typeIcon(i.type, 15)}<span class="kc-key ${i.status_kind === 'done' ? 'done-text' : ''}">${esc(i.key)}</span>
+      ${typeIcon(i.type, 15)}<span class="kc-key ${isIssueDone(i) ? 'done-text' : ''}">${esc(i.key)}</span>
       ${i.child_count ? `<span class="kc-sub" title="Subtareas">${icon('subtask', 12)} ${i.child_done}/${i.child_count}</span>` : ''}
       ${i.comment_count ? `<span class="kc-sub">${icon('message', 12)} ${i.comment_count}</span>` : ''}
       <span class="grow"></span>
-      ${i.due_date ? `<span class="kc-due ${i.status_kind !== 'done' && String(i.due_date).slice(0, 10) < new Date().toISOString().slice(0, 10) ? 'late' : ''}">${fmtShortDate(String(i.due_date).slice(0, 10))}</span>` : ''}
+      ${i.due_date ? `<span class="kc-due ${!isIssueDone(i) && String(i.due_date).slice(0, 10) < new Date().toISOString().slice(0, 10) ? 'late' : ''}">${fmtShortDate(String(i.due_date).slice(0, 10))}</span>` : ''}
       ${prioIcon(i.priority, 14)}
       ${i.story_points !== null && i.story_points !== undefined ? `<span class="pts">${fmtNum(i.story_points, 1)}</span>` : ''}
       ${avatar(i.assignee_id, 22)}
@@ -89,10 +92,10 @@ function blRow(i, epicsById) {
   const epic = i.parent_id && epicsById[i.parent_id];
   return `<div class="bl-row" draggable="true" data-id="${i.id}" data-key="${esc(i.key)}">
     <span class="grip">${icon('grip', 14)}</span>${typeIcon(i.type, 15)}
-    <span class="bl-key ${i.status_kind === 'done' ? 'done-text' : ''}">${esc(i.key)}</span>
-    <span class="bl-title ellip">${esc(i.title)}</span>
+    <span class="bl-key ${isIssueDone(i) ? 'done-text' : ''}">${esc(i.key)}</span>
+    <span class="bl-title ellip ${isIssueDone(i) ? 'done-text' : ''}">${esc(i.title)}</span>
     ${epic ? `<span class="epic-chip">${esc(epic.title)}</span>` : ''}
-    ${statusPill(i.status_name, i.status_kind)}
+    ${issuePill(i)}
     ${prioIcon(i.priority, 14)}
     <span class="pts ${i.story_points === null || i.story_points === undefined ? 'empty' : ''}">${i.story_points !== null && i.story_points !== undefined ? fmtNum(i.story_points, 1) : '-'}</span>
     ${avatar(i.assignee_id, 22)}
@@ -166,23 +169,24 @@ async function renderBoard(body, pj, reload) {
   const draw = () => {
     const list = applyLocalFilters(issues, f, pj);
     const shownPhases = showPhases ? phases.filter(phaseVisible) : [];
+    // v1.15: las tareas se ordenan por su estado (Standby, En curso, Test, Finalizada); las etapas van en una franja arriba,
+    // con su estado del flujo del proyecto (se cambia desde la etapa o el Roadmap)
     body.innerHTML = `
       <div class="board-head">
         ${active ? `<div><h2>${esc(active.name)}</h2><p class="muted small">${active.goal ? `${esc(active.goal)} · ` : ''}${fmtDate(active.start_date)} → ${fmtDate(active.end_date)} · ${daysLeft(active.end_date)}</p></div>
           ${pj.can_configure ? `<button class="btn" data-act="complete">${icon('check', 15)} Completar sprint</button>` : ''}`
-    : `<div><h2>Tablero Kanban</h2><p class="muted small">${uses ? `No hay un sprint activo: se muestran todas las tareas abiertas. Iniciá un sprint desde el <a href="#/projects/${esc(p.key)}/backlog">backlog</a> para trabajar con Scrum.` : 'Mové las etapas y las tareas entre los estados a medida que avanzan.'}</p></div>`}
+    : `<div><h2>Tablero Kanban</h2><p class="muted small">${uses ? `No hay un sprint activo: se muestran todas las tareas abiertas. Iniciá un sprint desde el <a href="#/projects/${esc(p.key)}/backlog">backlog</a> para trabajar con Scrum.` : 'Mové las tareas entre los estados a medida que avanzan.'}</p></div>`}
         ${phases.length ? `<label class="check sm board-phases"><input type="checkbox" data-show-phases ${showPhases ? 'checked' : ''}> Mostrar etapas (${phases.length})</label>` : ''}
       </div>
       ${filterBar(pj, f)}
-      <div class="board" style="--cols:${pj.statuses.length}">
-        ${pj.statuses.map((s) => {
-    const col = list.filter((i) => i.status_id === s.id).sort((a, b) => a.rank - b.rank);
-    const ph = shownPhases.filter((e) => e.status_id === s.id);
-    const over = s.wip_limit && col.length > s.wip_limit;
-    return `<div class="bcol ${over ? 'over-wip' : ''}">
-            <div class="bcol-head st-${s.kind}"><span>${esc(s.name)}</span><b>${col.length + ph.length}${s.wip_limit ? ` / ${s.wip_limit}` : ''}</b></div>
-            <div class="bcol-body" data-drop data-status="${s.id}">${ph.map((e) => phaseCard(e, phaseOrder.get(e.id))).join('')}${col.map((i) => card(i, epics)).join('')}<div class="drop-empty"></div></div>
-            ${s.kind === 'todo' ? `<button class="bcol-add" data-add-status="${s.id}">${icon('plus', 14)} Crear</button>` : ''}
+      ${shownPhases.length ? `<div class="tsk-phases" aria-label="Etapas del proyecto">${shownPhases.map((e) => phaseCard(e, phaseOrder.get(e.id), { fixed: true })).join('')}</div>` : ''}
+      <div class="board" style="--cols:${TASK_STATES.length}">
+        ${TASK_STATES.map((s) => {
+    const col = list.filter((i) => (i.task_state || 'standby') === s.id).sort((a, b) => a.rank - b.rank);
+    return `<div class="bcol">
+            <div class="bcol-head tsk-head-${s.id}"><span>${esc(s.label)}</span><b>${col.length}</b></div>
+            <div class="bcol-body" data-drop data-task-state="${s.id}">${col.map((i) => card(i, epics)).join('')}<div class="drop-empty"></div></div>
+            ${s.id === 'standby' ? `<button class="bcol-add" data-add-state="${s.id}">${icon('plus', 14)} Crear</button>` : ''}
           </div>`;
   }).join('')}
       </div>`;
@@ -199,29 +203,16 @@ async function renderBoard(body, pj, reload) {
     sortable(body, {
       itemSelector: '.kcard',
       onDrop: async ({ id, container, order, changedContainer }) => {
-        const statusId = Number(container.dataset.status);
-        const phase = phases.find((x) => x.id === id);
+        const taskState = container.dataset.taskState;
         try {
-          if (phase) {
-            // Una etapa solo cambia de estado: su orden es el del proyecto (Roadmap)
-            if (changedContainer) {
-              await api('/issues/reorder', { method: 'POST', body: { moved_id: id, status_id: statusId, order: [] } });
-              const s = pj.statuses.find((x) => x.id === statusId);
-              Object.assign(phase, { status_id: statusId, status_kind: s.kind, status_name: s.name });
-            }
-            draw();
-            return;
-          }
-          const taskOrder = order.filter((oid) => !phases.some((x) => x.id === oid));
-          await api('/issues/reorder', { method: 'POST', body: { moved_id: id, status_id: changedContainer ? statusId : undefined, order: taskOrder } });
+          await api('/issues/reorder', { method: 'POST', body: { moved_id: id, task_state: changedContainer ? taskState : undefined, order } });
           const it = issues.find((x) => x.id === id);
           if (it && changedContainer) {
-            const s = pj.statuses.find((x) => x.id === statusId);
-            it.status_id = statusId;
-            it.status_kind = s.kind;
-            it.status_name = s.name;
+            if (taskState === 'done' && it.task_state !== 'done') it.task_state_prev = it.task_state;
+            it.task_state = taskState;
+            toast(`${it.key} pasó a ${taskStateLabel(taskState)}`);
           }
-          taskOrder.forEach((oid, idx) => { const x = issues.find((y) => y.id === oid); if (x) x.rank = idx; });
+          order.forEach((oid, idx) => { const x = issues.find((y) => y.id === oid); if (x) x.rank = idx; });
           draw();
         } catch (e) { toastError(e); draw(); }
       },
@@ -229,8 +220,8 @@ async function renderBoard(body, pj, reload) {
     body.addEventListener('click', async (e) => {
       const c = e.target.closest('.kcard');
       if (c) return openIssueModal(c.dataset.key, { onChange: reload });
-      const add = e.target.closest('[data-add-status]');
-      if (add) return openCreateIssue({ projectKey: pj.project.key, sprintId: pj.sprints.find((s) => s.state === 'active')?.id || null, statusId: Number(add.dataset.addStatus), onCreated: reload });
+      const add = e.target.closest('[data-add-state]');
+      if (add) return openCreateIssue({ projectKey: pj.project.key, sprintId: pj.sprints.find((s) => s.state === 'active')?.id || null, taskState: add.dataset.addState, onCreated: reload });
       if (e.target.closest('[data-act=complete]')) completeSprint(pj, pj.sprints.find((s) => s.state === 'active'), reload);
     });
   }
@@ -247,7 +238,7 @@ function completeSprint(pj, sprint, reload) {
   const planned = pj.sprints.filter((s) => s.state === 'planned');
   const md = modal({
     title: `Completar ${sprint.name}`,
-    body: `<p>Las tareas que no estén en un estado "Hecho" se van a mover a:</p>
+    body: `<p>Las tareas que no estén Finalizadas se van a mover a:</p>
       <label class="field"><select class="input" name="move">${planned.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}<option value="new">Un sprint nuevo</option><option value="backlog">El backlog</option></select></label>`,
     footer: '<button class="btn" data-close>Cancelar</button><button class="btn primary" data-ok>Completar sprint</button>',
   });
@@ -435,7 +426,13 @@ async function renderList(body, pj, reload) {
   };
   const phaseName = (i) => pj.epics.find((e) => e.id === phaseOf(i))?.title || '';
   const draw = () => {
-    let list = applyLocalFilters(issues, f, pj).filter((i) => (showDone || i.status_kind !== 'done') && (!f.status || String(i.status_id) === f.status) && (showPhases || i.type !== 'epic'));
+    // Filtro de estado (v1.15): "t:<estado>" para las tareas (Standby, En curso, Test, Finalizada) y "s:<id>" para las etapas
+    const stMatch = (i) => {
+      if (!f.status) return true;
+      const [kind, val] = f.status.split(':');
+      return kind === 't' ? i.type !== 'epic' && (i.task_state || 'standby') === val : i.type === 'epic' && String(i.status_id) === val;
+    };
+    let list = applyLocalFilters(issues, f, pj).filter((i) => (showDone || !isIssueDone(i)) && stMatch(i) && (showPhases || i.type !== 'epic'));
     // Filtrar por etapa también deja ver la etapa misma
     if (f.epic && showPhases) {
       const e = issues.find((x) => String(x.id) === f.epic);
@@ -454,7 +451,7 @@ async function renderList(body, pj, reload) {
       out.push(...tasks.filter((t) => !placed.has(t)));
       list = out;
     } else {
-      const val = (i) => ({ rank: i.rank, key: i.number, title: i.title.toLowerCase(), status: i.status_name, priority: i.priority, assignee: userName(i.assignee_id), points: Number(i.story_points || 0), due: i.due_date || '9999', sprint: sprintName(i.sprint_id), phase: phaseName(i).toLowerCase() || '~' })[sort.k];
+      const val = (i) => ({ rank: i.rank, key: i.number, title: i.title.toLowerCase(), status: i.type === 'epic' ? i.status_name : taskStateLabel(i.task_state), priority: i.priority, assignee: userName(i.assignee_id), points: Number(i.story_points || 0), due: i.due_date || '9999', sprint: sprintName(i.sprint_id), phase: phaseName(i).toLowerCase() || '~' })[sort.k];
       list = list.slice().sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * sort.dir);
     }
     const nPhases = list.filter((i) => i.type === 'epic').length;
@@ -464,17 +461,19 @@ async function renderList(body, pj, reload) {
     const row = (i) => {
       const isPhase = i.type === 'epic';
       const nested = tree && !isPhase && showPhases && phaseOf(i);
-      return `<tr data-key="${esc(i.key)}" class="${isPhase ? 'phase-row-list' : ''} ${nested ? 'nested' : ''}">
+      return `<tr data-key="${esc(i.key)}" class="${isPhase ? 'phase-row-list' : ''} ${nested ? 'nested' : ''} ${!isPhase && i.task_state === 'done' ? 'tsk-done-row' : ''}">
         <td>${typeIcon(i.type, 15)}</td><td class="nowrap"><b>${esc(i.key)}</b></td>
         <td class="ellip-cell">${nested ? '<span class="tree-pad"></span>' : ''}${i.parent_id && i.type === 'subtask' ? `<span class="muted small">${esc(byId.get(i.parent_id)?.key || '')} / </span>` : ''}${isPhase ? `<b>${esc(i.title)}</b>` : esc(i.title)}${isPhase && (i.start_date || i.due_date) ? ` <span class="muted small">· ${i.start_date ? fmtDate(String(i.start_date).slice(0, 10)) : '…'} → ${i.due_date ? fmtDate(String(i.due_date).slice(0, 10)) : '…'}</span>` : ''}</td>
         ${pj.epics.length ? `<td class="small">${isPhase ? `<span class="phase-tag">Etapa ${(phaseOrder.get(i.id) ?? 0) + 1}</span>` : esc(phaseName(i) || '—')}</td>` : ''}
-        <td>${statusPill(i.status_name, i.status_kind)}</td><td>${prioIcon(i.priority, 14)} ${ISSUE_PRIO[i.priority].label}</td>
+        <td>${issuePill(i)}</td><td>${prioIcon(i.priority, 14)} ${ISSUE_PRIO[i.priority].label}</td>
         <td>${avatar(i.assignee_id, 20)} ${esc(userName(i.assignee_id) || '')}</td><td>${esc(sprintName(i.sprint_id))}</td>
         <td>${i.story_points ?? ''}</td><td class="nowrap">${i.due_date ? fmtDate(String(i.due_date).slice(0, 10)) : ''}</td></tr>`;
     };
     body.innerHTML = `${filterBar(pj, f)}
-      <div class="row gap list-opts"><select class="input sm" data-status><option value="">Todos los estados</option>${options(pj.statuses, f.status)}</select>
-        <label class="check sm"><input type="checkbox" data-done ${showDone ? 'checked' : ''}> Mostrar hechas</label>
+      <div class="row gap list-opts"><select class="input sm" data-status><option value="">Todos los estados</option>
+          <optgroup label="Tareas">${TASK_STATES.map((x) => `<option value="t:${x.id}" ${f.status === `t:${x.id}` ? 'selected' : ''}>${x.label}</option>`).join('')}</optgroup>
+          ${phasesTotal ? `<optgroup label="Etapas">${pj.statuses.map((x) => `<option value="s:${x.id}" ${f.status === `s:${x.id}` ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</optgroup>` : ''}</select>
+        <label class="check sm"><input type="checkbox" data-done ${showDone ? 'checked' : ''}> Mostrar finalizadas</label>
         ${phasesTotal ? `<label class="check sm" title="Las etapas del proyecto (ej. Relevamiento, Desarrollo, Testing)"><input type="checkbox" data-phases ${showPhases ? 'checked' : ''}> Mostrar etapas (${phasesTotal})</label>` : ''}
         ${!tree && pj.epics.length ? '<button type="button" class="link-btn" data-tree>Agrupar por etapa</button>' : ''}
         <span class="grow"></span><span class="muted small">${showPhases && nPhases ? `${nPhases} etapa${nPhases === 1 ? '' : 's'} · ` : ''}${nTasks} tarea${nTasks === 1 ? '' : 's'}</span></div>

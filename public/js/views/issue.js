@@ -1,6 +1,6 @@
 import {
   state, api, esc, icon, avatar, toast, toastError, modal, relTime, fmtDateTime, fmtDate, navigate, options, sanitize, richEditor,
-  userName, fmtMinutes, fmtSize, confirmDialog, readFiles, todayISO, newKey, guardDates, dmy,
+  userName, fmtMinutes, fmtSize, confirmDialog, readFiles, todayISO, newKey, guardDates, dmy, popover,
 } from '../core.js';
 import { setCrumbs } from '../app.js';
 
@@ -27,9 +27,59 @@ export const prioIcon = (p, size = 15) => {
 };
 export const statusPill = (name, kind) => `<span class="st-pill st-${esc(kind || 'todo')}">${esc(name || '—')}</span>`;
 
+// ---------- Estados de las tareas y subtareas (v1.15) ----------
+// Las etapas (épicas) siguen con el flujo del proyecto; las tareas y subtareas usan estos cuatro estados.
+export const TASK_STATES = [
+  { id: 'standby', label: 'Standby' },
+  { id: 'in_progress', label: 'En curso' },
+  { id: 'test', label: 'Test' },
+  { id: 'done', label: 'Finalizada' },
+];
+export const taskStateLabel = (s) => TASK_STATES.find((x) => x.id === s)?.label || 'Standby';
+export const taskStatePill = (s) => `<span class="st-pill tsk-${esc(s || 'standby')}">${esc(taskStateLabel(s))}</span>`;
+/** Etiqueta de estado de cualquier issue: la etapa muestra el estado del flujo; la tarea, su estado propio. */
+export const issuePill = (i) => (i.type === 'epic' ? statusPill(i.status_name, i.status_kind) : taskStatePill(i.task_state));
+export const isIssueDone = (i) => (i.type === 'epic' ? i.status_kind === 'done' : i.task_state === 'done');
+/** Botón con el estado de la tarea que abre el menú para cambiarlo. */
+export const taskStateButton = (i) => `<button type="button" class="st-pill tsk-${esc(i.task_state || 'standby')} tsk-btn" data-task-state="${esc(i.key)}"
+  aria-haspopup="menu" title="Cambiar estado">${esc(taskStateLabel(i.task_state))}${icon('down', 10)}</button>`;
+/** Casilla para pasar la tarea a Finalizada (o devolverla al estado que tenía). */
+export const taskCheck = (i) => {
+  const done = i.task_state === 'done';
+  const label = done ? 'Volver al estado anterior' : 'Marcar como Finalizada';
+  return `<input type="checkbox" class="tsk-check" data-task-check="${esc(i.key)}" ${done ? 'checked' : ''} title="${label}" aria-label="${label}: ${esc(i.title)}">`;
+};
+
+/** Menú con los cuatro estados; onPick(estado) al elegir. */
+export function pickTaskState(anchor, current, onPick) {
+  popover(anchor, `<div role="menu">${TASK_STATES.map((s) => `<button class="menu-item tsk-item ${s.id === current ? 'on' : ''}" role="menuitem" data-value="${s.id}">
+    <i class="tsk-dot tsk-${s.id}"></i>${s.label}${s.id === current ? `<span class="grow"></span>${icon('check', 13)}` : ''}</button>`).join('')}</div>`, { align: 'right', onClick: (v) => { if (v !== current) onPick(v); } });
+}
+
+/**
+ * Cambia el estado de una tarea y avisa con la opción de deshacer. issue: { key, task_state, task_state_prev }.
+ * Devuelve el detalle actualizado; onChange(detalle) también corre después de deshacer.
+ */
+export async function changeTaskState(issue, next, { onChange } = {}) {
+  const before = issue.task_state || 'standby';
+  const d = await api(`/issues/${encodeURIComponent(issue.key)}`, { method: 'PATCH', body: { task_state: next } });
+  toast(`${issue.key} pasó a ${taskStateLabel(next)}`, 'ok', {
+    action: {
+      label: 'Deshacer',
+      onClick: async () => {
+        try { onChange?.(await api(`/issues/${encodeURIComponent(issue.key)}`, { method: 'PATCH', body: { task_state: before } })); } catch (e) { toastError(e); }
+      },
+    },
+  });
+  onChange?.(d);
+  return d;
+}
+/** Estado al que vuelve una tarea Finalizada al desmarcar la casilla. */
+export const reopenState = (i) => (i.task_state_prev && i.task_state_prev !== 'done' ? i.task_state_prev : 'in_progress');
+
 const LINK_KIND = { blocks: ['bloquea a', 'está bloqueada por'], relates: ['se relaciona con', 'se relaciona con'], duplicates: ['duplica a', 'está duplicada por'] };
 const FIELD_LABEL = {
-  status_id: 'Estado', priority: 'Prioridad', assignee_id: 'Responsable', parent_id: 'Padre', sprint_id: 'Sprint', title: 'Título', type: 'Tipo',
+  status_id: 'Estado', task_state: 'Estado', priority: 'Prioridad', assignee_id: 'Responsable', parent_id: 'Padre', sprint_id: 'Sprint', title: 'Título', type: 'Tipo',
   story_points: 'Puntos', labels: 'Etiquetas', start_date: 'Inicio', due_date: 'Vencimiento', estimate_minutes: 'Estimación',
 };
 
@@ -59,6 +109,9 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
   let tab = 'comments';
   let editingDesc = false;
   let descEditor = null;
+  // Ocultar las tareas finalizadas de la lista (cada agente lo recuerda)
+  let hideDone = false;
+  try { hideDone = localStorage.getItem('issue-hide-done') === '1'; } catch { /* sin almacenamiento */ }
 
   async function load() {
     d = await api(`/issues/${encodeURIComponent(key)}`);
@@ -74,13 +127,22 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
     } catch (e) { toastError(e); draw(); }
   }
 
+  /** Cambia el estado de una tarea de la lista y vuelve a cargar la que está abierta (avance, contador, historial). */
+  async function childState(c, next) {
+    try {
+      await changeTaskState(c, next, { onChange: () => load().catch(toastError) });
+    } catch (e) { toastError(e); draw(); }
+  }
+
   let dateCheck = null;
   function draw() {
     const i = d.issue;
     const pj = d.project;
     const canChildren = i.type !== 'subtask';
     const childType = i.type === 'epic' ? 'story' : 'subtask';
-    const done = d.children.filter((c) => c.status_kind === 'done').length;
+    const done = d.children.filter((c) => c.task_state === 'done').length;
+    const byState = Object.fromEntries(TASK_STATES.map((s) => [s.id, d.children.filter((c) => (c.task_state || 'standby') === s.id).length]));
+    const nChildren = d.children.length;
     host.innerHTML = `
     <div class="issue-top">
       <div class="crumbline">
@@ -104,9 +166,12 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
     : `<div class="desc ${i.description_html ? '' : 'empty-desc'}" data-act="edit-desc">${i.description_html ? sanitize(i.description_html, { blockRemote: true }) : 'Agregá una descripción…'}</div>`}
         </div>
         ${canChildren ? `<div class="issue-section">
-          <div class="sec-head"><h4>${i.type === 'epic' ? 'Tareas de la épica' : 'Subtareas'} ${d.children.length ? `<small class="muted">${done}/${d.children.length}</small>` : ''}</h4></div>
-          ${d.children.length ? `<div class="progress thin"><span style="width:${(done / d.children.length) * 100}%"></span></div>` : ''}
-          <ul class="child-list">${d.children.map((c) => `<li data-open="${esc(c.key)}">${typeIcon(c.type, 14)}<b>${esc(c.key)}</b><span class="grow ellip ${c.status_kind === 'done' ? 'done-text' : ''}">${esc(c.title)}</span>${prioIcon(c.priority, 14)}${avatar(c.assignee_id, 20)}${statusPill(c.status_name, c.status_kind)}</li>`).join('')}</ul>
+          <div class="sec-head"><h4>${i.type === 'epic' ? 'Tareas de la épica' : 'Subtareas'} ${nChildren ? `<small class="muted">${done}/${nChildren} finalizadas · ${Math.round((done / nChildren) * 100)} %</small>` : ''}</h4>
+            ${done ? `<label class="check sm tsk-hide"><input type="checkbox" data-hide-done ${hideDone ? 'checked' : ''}> Ocultar finalizadas</label>` : ''}</div>
+          ${nChildren ? `<div class="tsk-dist" role="img" aria-label="${TASK_STATES.map((s) => `${s.label}: ${byState[s.id]}`).join(', ')}">${['done', 'test', 'in_progress', 'standby'].map((k) => (byState[k] ? `<span class="tsk-${k}" style="width:${(byState[k] / nChildren) * 100}%"></span>` : '')).join('')}</div>
+            <div class="tsk-legend">${TASK_STATES.map((s) => `<span><i class="tsk-dot tsk-${s.id}"></i>${s.label} ${byState[s.id]}</span>`).join('')}</div>` : ''}
+          <ul class="child-list tsk-list">${d.children.filter((c) => !(hideDone && c.task_state === 'done')).map((c) => `<li data-open="${esc(c.key)}" class="${c.task_state === 'done' ? 'tsk-done' : ''}">${taskCheck(c)}${typeIcon(c.type, 14)}<b class="tsk-key">${esc(c.key)}</b><span class="grow ellip tsk-title">${esc(c.title)}</span>${prioIcon(c.priority, 14)}${avatar(c.assignee_id, 20)}${taskStateButton(c)}</li>`).join('')}</ul>
+          ${hideDone && done ? `<p class="muted small">${done === 1 ? 'Hay 1 finalizada oculta' : `Hay ${done} finalizadas ocultas`}.</p>` : ''}
           <form class="quick-add row gap" data-form="child">
             ${i.type === 'epic' ? `<select class="input sm" name="type"><option value="story">Historia</option><option value="task">Tarea</option><option value="bug">Bug</option></select>` : `<input type="hidden" name="type" value="${childType}">`}
             <input class="input sm grow" name="title" placeholder="${i.type === 'epic' ? 'Agregar tarea a la épica' : 'Agregar subtarea'}"><button class="btn sm">${icon('plus', 13)}</button>
@@ -114,7 +179,7 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
         </div>` : ''}
         <div class="issue-section">
           <div class="sec-head"><h4>Tareas vinculadas</h4><button class="link-btn" data-act="add-link">${icon('plus', 13)} Vincular</button></div>
-          ${d.links.length ? `<ul class="child-list">${d.links.map((l) => `<li><small class="muted link-kind">${esc(LINK_KIND[l.kind][l.dir === 'out' ? 0 : 1])}</small><span data-open="${esc(l.key)}" class="grow row gap">${typeIcon(l.type, 14)}<b>${esc(l.key)}</b><span class="ellip">${esc(l.title)}</span></span>${statusPill(l.status_name, l.status_kind)}<button class="icon-btn sm" data-unlink="${l.id}" title="Quitar vínculo">${icon('x', 12)}</button></li>`).join('')}</ul>` : '<p class="muted small">Sin vínculos.</p>'}
+          ${d.links.length ? `<ul class="child-list">${d.links.map((l) => `<li><small class="muted link-kind">${esc(LINK_KIND[l.kind][l.dir === 'out' ? 0 : 1])}</small><span data-open="${esc(l.key)}" class="grow row gap">${typeIcon(l.type, 14)}<b>${esc(l.key)}</b><span class="ellip">${esc(l.title)}</span></span>${issuePill(l)}<button class="icon-btn sm" data-unlink="${l.id}" title="Quitar vínculo">${icon('x', 12)}</button></li>`).join('')}</ul>` : '<p class="muted small">Sin vínculos.</p>'}
         </div>
         ${d.tickets.length ? `<div class="issue-section"><div class="sec-head"><h4>Tickets de la mesa de ayuda</h4></div><ul class="child-list">${d.tickets.map((t) => `<li><a href="#/tickets/${t.number}" class="grow row gap" data-nav>${icon('ticket', 14)}<b>#${t.number}</b><span class="ellip">${esc(t.subject)}</span></a><small class="muted">${esc(t.status_name || '')}</small></li>`).join('')}</ul></div>` : ''}
         <div class="issue-section">
@@ -129,7 +194,9 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
         <div class="tab-body">${tabBody()}</div>
       </div>
       <aside class="issue-side">
-        <label class="field"><span>Estado</span><select class="input status-select st-${esc(i.status_kind)}" data-field="status_id">${options(d.statuses, i.status_id)}</select></label>
+        ${i.type === 'epic'
+    ? `<label class="field"><span>Estado</span><select class="input status-select st-${esc(i.status_kind)}" data-field="status_id">${options(d.statuses, i.status_id)}</select></label>`
+    : `<label class="field"><span>Estado</span><select class="input status-select tsk-${esc(i.task_state || 'standby')}" data-field="task_state">${TASK_STATES.map((s) => `<option value="${s.id}" ${s.id === (i.task_state || 'standby') ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>`}
         <label class="field"><span>Responsable</span><select class="input" data-field="assignee_id"><option value="">— Sin asignar</option>${options(state.meta.users.filter((u) => u.active || u.id === i.assignee_id), i.assignee_id)}</select></label>
         <div class="field"><span>Informante</span><div class="ro">${avatar(i.reporter_id, 20)} ${esc(userName(i.reporter_id) || '—')}</div></div>
         <label class="field"><span>Tipo</span><select class="input" data-field="type">${Object.entries(ISSUE_TYPES).map(([k, v]) => `<option value="${k}" ${k === i.type ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label>
@@ -219,6 +286,7 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
   function histVal(k, v) {
     if (v === null || v === undefined || v === '') return '—';
     if (k === 'status_id') return d.statuses.find((s) => s.id === v)?.name || v;
+    if (k === 'task_state') return taskStateLabel(v);
     if (k === 'assignee_id') return userName(v);
     if (k === 'priority') return ISSUE_PRIO[v]?.label;
     if (k === 'type') return ISSUE_TYPES[v]?.label;
@@ -243,11 +311,28 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
   }
 
   host.addEventListener('change', async (e) => {
+    if (e.target.matches('[data-hide-done]')) {
+      hideDone = e.target.checked;
+      try { localStorage.setItem('issue-hide-done', hideDone ? '1' : '0'); } catch { /* sin almacenamiento */ }
+      return draw();
+    }
+    const chk = e.target.closest('[data-task-check]');
+    if (chk) {
+      const c = d.children.find((x) => x.key === chk.dataset.taskCheck);
+      if (!c) return;
+      chk.disabled = true;
+      return childState(c, chk.checked ? 'done' : reopenState(c));
+    }
     const f = e.target.closest('[data-field]');
     if (f) {
       const field = f.dataset.field;
       let v = f.value;
       if (field === 'labels') return patch({ labels: v.split(',').map((x) => x.trim()).filter(Boolean) });
+      if (field === 'task_state') {
+        const before = d.issue.task_state;
+        await patch({ task_state: v });
+        return toast(`${d.issue.key} pasó a ${taskStateLabel(v)}`, 'ok', { action: { label: 'Deshacer', onClick: () => patch({ task_state: before }) } });
+      }
       if (field === 'estimate_hours') return patch({ estimate_minutes: v === '' ? null : Math.round(Number(v) * 60) });
       if (['status_id', 'assignee_id', 'priority', 'parent_id', 'sprint_id'].includes(field)) v = v === '' ? null : Number(v);
       if (field === 'start_date' || field === 'due_date') {
@@ -290,6 +375,14 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
   });
 
   host.addEventListener('click', async (e) => {
+    if (e.target.closest('[data-task-check]')) return; // la casilla no abre la tarea (el cambio va por 'change')
+    const stBtn = e.target.closest('[data-task-state]');
+    if (stBtn) {
+      e.preventDefault();
+      const c = d.children.find((x) => x.key === stBtn.dataset.taskState);
+      if (c) pickTaskState(stBtn, c.task_state, (next) => childState(c, next));
+      return;
+    }
     const open = e.target.closest('[data-open]');
     if (open && !e.target.closest('button')) {
       e.preventDefault();
@@ -369,7 +462,7 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
 }
 
 /** Modal de creación de issue. */
-export async function openCreateIssue({ projectKey, sprintId = null, parentId = null, type = 'task', statusId = null, onCreated } = {}) {
+export async function openCreateIssue({ projectKey, sprintId = null, parentId = null, type = 'task', statusId = null, taskState = null, onCreated } = {}) {
   const opKey = newKey();
   const projects = state.meta.projects.filter((p) => !p.archived);
   if (!projects.length) return toast('Primero creá un proyecto', 'error');
@@ -422,6 +515,7 @@ export async function openCreateIssue({ projectKey, sprintId = null, parentId = 
       assignee_id: Number(f.assignee_id.value) || null, parent_id: Number(f.parent_id.value) || null, sprint_id: Number(f.sprint_id.value) || null,
       story_points: f.story_points.value === '' ? null : Number(f.story_points.value), start_date: f.start_date.value || null, due_date: f.due_date.value || null,
       labels: f.labels.value.split(',').map((x) => x.trim()).filter(Boolean), status_id: statusId,
+      task_state: taskState && f.type.value !== 'epic' ? taskState : undefined,
     };
     if (!body.title) return toast('El título es obligatorio', 'error');
     if (!datesOk()) return toast('El vencimiento no puede ser anterior al inicio', 'error');

@@ -95,6 +95,15 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Estados de las tareas: Standby, En curso, Test y Finalizada (v1.15.0)**
+- Las tareas y subtareas tienen cuatro estados propios: **Standby**, **En curso**, **Test** y **Finalizada**. Son los mismos en todos los proyectos. Las etapas (épicas) siguen con el flujo del proyecto (por ejemplo Backlog, Análisis, Desarrollo, Testing, Producción).
+- En la lista de tareas de una etapa y en la de subtareas de una tarea, cada fila tiene una **casilla** para pasarla a Finalizada de un toque y una **etiqueta de estado** que se toca para elegir cualquiera de los cuatro, sin abrir la tarea. Las finalizadas se ven **tachadas**. Al desmarcar la casilla, la tarea vuelve al estado que tenía. Cada cambio muestra un aviso con **Deshacer**.
+- Arriba de la lista: cuántas están finalizadas y el porcentaje, una barra de colores con cuántas hay en cada estado y la opción **Ocultar finalizadas** (cada agente la recuerda). Standby no cuenta como avance.
+- El **Tablero Kanban** tiene las cuatro columnas; las tareas se arrastran entre ellas y las finalizadas se ven tachadas. Las etapas, con su estado y avance, pasan a una franja arriba del tablero (se ocultan con "Mostrar etapas"). Los límites WIP del flujo ya no se muestran en el tablero.
+- La **Lista**, el **Backlog**, **Mi trabajo** (agrupado en En curso, En test y En standby), el detalle de la tarea y las tareas vinculadas a un ticket muestran el estado nuevo. La API de exportación suma el campo `task_state` (`standby`, `in_progress`, `test`, `done`).
+- Sigue igual: el avance de las etapas y del portfolio cuenta las Finalizadas; si todas las tareas quedan Finalizadas el proyecto pasa solo a Finalizado; finalizar una tarea vinculada a un ticket dispara el cierre de ciclo.
+- **Migración 21**: `issues.task_state` e `issues.task_state_prev`. Las tareas existentes pasan solas: las pendientes a Standby, las en curso a En curso, las que están en un estado de pruebas (Testing, En revisión) a Test y las hechas a Finalizada.
+
 **Todos los tickets en una vista (v1.14.4)**
 - Al lado del paginado de la lista de tickets se elige cuántos ver: 50, 100, 200 o 500 por página, o **Todos** (hasta 2000). Cada agente elige el suyo y queda guardado.
 

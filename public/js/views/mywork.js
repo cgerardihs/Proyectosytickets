@@ -1,16 +1,20 @@
 import { api, esc, icon, relTime, fmtShortDate, priorityBadge, emptyState } from '../core.js';
 import { setCrumbs } from '../app.js';
-import { typeIcon, prioIcon, statusPill, openIssueModal } from './issue.js';
+import { typeIcon, prioIcon, issuePill, openIssueModal } from './issue.js';
 
 export async function render(el) {
   setCrumbs([{ label: 'Mi trabajo' }]);
   const draw = async () => {
     const w = await api('/my-work');
     const today = new Date().toISOString().slice(0, 10);
+    // v1.15: las tareas se agrupan por su estado (las etapas, por el tipo de estado del flujo)
+    const late = (i) => i.due_date && String(i.due_date).slice(0, 10) < today;
+    const st = (i) => (i.type === 'epic' ? { todo: 'standby', doing: 'in_progress' }[i.status_kind] || 'standby' : i.task_state || 'standby');
     const groups = [
-      ['Vencidas', w.issues.filter((i) => i.due_date && String(i.due_date).slice(0, 10) < today)],
-      ['En curso', w.issues.filter((i) => i.status_kind === 'doing' && !(i.due_date && String(i.due_date).slice(0, 10) < today))],
-      ['Por hacer', w.issues.filter((i) => i.status_kind !== 'doing' && !(i.due_date && String(i.due_date).slice(0, 10) < today))],
+      ['Vencidas', w.issues.filter(late)],
+      ['En curso', w.issues.filter((i) => !late(i) && st(i) === 'in_progress')],
+      ['En test', w.issues.filter((i) => !late(i) && st(i) === 'test')],
+      ['En standby', w.issues.filter((i) => !late(i) && st(i) === 'standby')],
     ];
     el.innerHTML = `<div class="page">
       <div class="page-head"><div><h1>Mi trabajo</h1><p class="muted">Tickets y tareas de proyecto asignados a vos.</p></div></div>
@@ -26,7 +30,7 @@ export async function render(el) {
           ${w.issues.length ? groups.filter(([, l]) => l.length).map(([title, list]) => `<h4 class="grp-title">${title} <small>${list.length}</small></h4>
             <ul class="work-list">${list.map((i) => `<li data-key="${esc(i.key)}" class="clickable">
               <span class="row gap">${typeIcon(i.type, 15)}<b style="color:${esc(i.project_color)}">${esc(i.key)}</b><span class="ellip">${esc(i.title)}</span></span>
-              <span class="row gap">${prioIcon(i.priority, 14)}${statusPill(i.status_name, i.status_kind)}${i.due_date ? `<span class="small muted">${fmtShortDate(String(i.due_date).slice(0, 10))}</span>` : ''}<span class="small muted">${esc(i.project_name)}</span></span></li>`).join('')}</ul>`).join('') : emptyState('Sin tareas asignadas', '', 'checkbox')}
+              <span class="row gap">${prioIcon(i.priority, 14)}${issuePill(i)}${i.due_date ? `<span class="small muted">${fmtShortDate(String(i.due_date).slice(0, 10))}</span>` : ''}<span class="small muted">${esc(i.project_name)}</span></span></li>`).join('')}</ul>`).join('') : emptyState('Sin tareas asignadas', '', 'checkbox')}
         </section>
       </div></div>`;
   };
