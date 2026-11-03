@@ -5,6 +5,7 @@ import {
   newKey,
 } from '../core.js';
 import { setCrumbs, refreshMeta } from '../app.js';
+import { attachTicketPreview } from '../ticket-preview.js';
 
 const VIEWS = [
   ['all', 'Todos los tickets'],
@@ -136,7 +137,7 @@ export async function render(el) {
     return `<tr data-num="${t.number}" class="${selected.has(t.number) ? 'sel' : ''}">
       <td class="cb"><input type="checkbox" data-sel="${t.number}" ${selected.has(t.number) ? 'checked' : ''} aria-label="Seleccionar #${t.number}"></td>
       <td class="ch" title="${esc(CHANNEL[t.channel] || t.channel)}">${icon(CHANNEL_ICON[t.channel] || 'ticket', 15)}</td>
-      <td class="subj"><a href="#/tickets/${t.number}"><b>#${t.number}:</b> ${esc(t.subject)}</a>
+      <td class="subj"><a href="#/tickets/${t.number}" data-pv="${esc(String(t.last_activity_at || t.updated_at || ''))}"><b>#${t.number}:</b> ${esc(t.subject)}</a>
         <div class="sub">${sla ? `<span class="sla ${sla.cls}">${icon('clock', 11)} ${esc(sla.label)}</span>` : ''}${t.project_key ? `<span class="chip sm proj-chip" title="Convertido en proyecto de desarrollo">${icon('projects', 11)} ${esc(t.project_key)}</span>` : ''}${(t.tags || []).map((g) => `<span class="tag">${esc(g)}</span>`).join('')}</div></td>
       <td><span class="ellip" title="${esc(t.contact_email || '')}">${esc(t.contact_name || '')}</span></td>
       <td><button class="cell-edit" data-edit="priority">${priorityBadge(t.priority)}${icon('down', 12)}</button></td>
@@ -339,7 +340,10 @@ export async function render(el) {
     toast(Number(e.target.value) ? `La lista se actualiza sola ${e.target.selectedOptions[0].textContent.toLowerCase()}` : 'Actualización automática apagada');
   });
 
+  // v1.18: vista previa de la última actividad al dejar el mouse sobre el asunto
+  const offPreview = attachTicketPreview(el);
   load();
+  return () => offPreview();
 }
 
 /** Cada cuántos segundos se actualiza sola la lista (preferencia de cada agente; de fábrica, 1 minuto). */

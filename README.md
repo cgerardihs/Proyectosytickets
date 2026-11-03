@@ -95,6 +95,14 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Vista previa de la última actividad (v1.18.0)**
+- En la lista de tickets, al dejar el mouse unos instantes (0,7 s) sobre el asunto de un ticket, aparece un recuadro con **lo último que pasó**: quién lo hizo, qué fue (creó el ticket, respondió el usuario, respuesta, nota privada o reenvío), hace cuánto y la fecha y hora, y el texto.
+- El texto se muestra limpio: sin el historial citado del correo ni imágenes, y cortado a unas líneas. Las notas privadas se ven con su fondo amarillo.
+- Abajo: cuántos mensajes tiene el ticket, si tiene adjuntos o imágenes, y un aviso cuando lo último es del usuario y espera respuesta.
+- Se cierra al sacar el mouse o con Esc; si se pasa el mouse al recuadro, queda abierto. También se abre llegando con Tab. En pantallas táctiles no aparece.
+- Se pide recién cuando se abre y se guarda un minuto (si el ticket tiene novedades, se vuelve a pedir).
+- Sin migración.
+
 **Imágenes pegadas en el texto (v1.17.3)**
 - Las capturas que se pegan (Ctrl+V) o se arrastran al editor quedan **en el texto, donde está el cursor**, en su propio renglón. Antes se agregaban como adjuntos `captura-….png`. Vale para respuestas, notas (también al editarlas), reenvíos, tickets nuevos, y la descripción y los comentarios de las tareas de proyectos.
 - Se guardan como imágenes del mensaje, con los mismos permisos que cualquier adjunto, y no se listan como archivos sueltos. Al tocar una imagen se abre en tamaño completo.
