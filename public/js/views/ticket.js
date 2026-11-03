@@ -19,7 +19,7 @@ const ACTION_TEXT = {
   critical_linked: 'lo vinculó a un sistema crítico', critical_unlinked: 'lo desvinculó de un sistema crítico',
 };
 // Nombres de los campos (los configurables salen de fieldLabel, así el historial usa el nombre actual)
-const FIELD_KEY = { status_id: 'status', priority: 'priority', assignee_id: 'assignee', category_id: 'category', type_id: 'type', tech_category_id: 'tech', tech_subcategory_id: 'subtech', sla_id: 'sla', contact_id: 'contact' };
+const FIELD_KEY = { status_id: 'status', priority: 'priority', assignee_id: 'assignee', category_id: 'category', type_id: 'type', tech_category_id: 'tech', tech_subcategory_id: 'subtech', sla_id: 'sla', contact_id: 'contact', version: 'version' };
 const FIXED_LABELS = { group_id: 'Grupo (anterior)', subject: 'Asunto', tags: 'Etiquetas', cc: 'CC' };
 const FIELD_LABELS = new Proxy({}, { get: (_, k) => (FIELD_KEY[k] ? fieldLabel(FIELD_KEY[k]) : FIXED_LABELS[k]) });
 function fieldValue(k, v) {
@@ -32,6 +32,7 @@ function fieldValue(k, v) {
     case 'category_id': return categoryName(v);
     case 'type_id': return typeName(v);
     case 'tech_category_id': return techName(v);
+    case 'version': return v || '—';
     case 'tech_subcategory_id': return (state.meta.techSubcategories || []).find((x) => x.id === v)?.name || v;
     case 'sla_id': return slaName(v);
     default: return Array.isArray(v) ? v.join(', ') : String(v);
@@ -327,6 +328,10 @@ export async function render(el, [num]) {
       <label class="field"><span>${L('priority')} *</span><select class="input" name="priority">${Object.entries(PRIORITY).map(([k, v]) => `<option value="${k}" ${Number(k) === t.priority ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label class="field"><span>${L('tech')}</span><select class="input" name="tech_category_id">${options(techs, t.tech_category_id, { empty: '—' })}</select></label>
       ${subs.length || t.tech_subcategory_id ? `<label class="field"><span>${L('subtech')}</span><select class="input" name="tech_subcategory_id">${options(subs, t.tech_subcategory_id, { empty: '—' })}</select></label>` : ''}
+      ${m.techCategories.find((x) => x.id === t.tech_category_id)?.has_version ? `<label class="field"><span>Versión de la solución</span>
+        <input class="input" name="version" list="ticketVersions" maxlength="40" value="${esc(t.version || '')}" placeholder="versión 11 2026" autocomplete="off">
+        <datalist id="ticketVersions">${(m.ticketVersions || []).map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
+        <small class="hint">Número y año, por ejemplo "versión 11 2026".</small></label>` : ''}
       <label class="field"><span>${L('type')}</span><select class="input" name="type_id">${options(m.types.filter((x) => x.active || x.id === t.type_id), t.type_id, { empty: '—' })}</select></label>
       <label class="field"><span>${L('assignee')}</span><select class="input" name="assignee_id"><option value="">— Sin asignar</option>${options(members, t.assignee_id)}</select></label>
       <label class="field"><span>${L('category')}</span><select class="input" name="category_id">${options(m.categories.filter((x) => x.active || x.id === t.category_id), t.category_id, { empty: '—' })}</select></label>
@@ -362,6 +367,7 @@ export async function render(el, [num]) {
       sla_id: n(f.sla_id.value), status_id: n(f.status_id.value), priority: n(f.priority.value),
       tech_category_id: n(f.tech_category_id.value), tech_subcategory_id: f.tech_subcategory_id ? n(f.tech_subcategory_id.value) : null, type_id: n(f.type_id.value), assignee_id: n(f.assignee_id.value), category_id: n(f.category_id.value),
       tags: split(f.tags.value), cc: split(f.cc.value),
+      ...(f.version ? { version: f.version.value.trim() || null } : {}),
     };
   }
 

@@ -95,6 +95,15 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Versión de la solución en los tickets de Equis (v1.19.0)**
+- Los tickets de las categorías técnicas de **Equis** tienen un campo nuevo, **Versión de la solución**, en el panel de propiedades: en qué versión viene la solución del problema.
+- Siempre con número y año: **"versión 11 2026"**. Si se escribe "11/2026", "version 11 2026" o "11-2026", se guarda igual, "versión 11 2026", para que los filtros y los informes agrupen bien. Mientras se escribe, sugiere las versiones ya usadas. Cualquier otro formato se rechaza con un mensaje que explica cómo va.
+- **Lista de tickets**: columna **Versión** al lado de la categoría técnica, que se puede ordenar (por año y número, no alfabéticamente), y filtro **Versión de la solución** (con la opción "Sin versión"). Se puede guardar como vista.
+- **Informes**: la versión sale en el Explorador (fuente Tickets), en la exportación de la lista y en la API (`version`). El cambio queda en el historial del ticket.
+- **Configuración → Categorías técnicas**: columna **Pide versión** para elegir qué categorías la tienen. De entrada, las que se llaman "Equis".
+- **Mi trabajo**: los tickets también muestran la vista previa de la última actividad al dejar el mouse sobre el asunto.
+- **Migración 25**: `tickets.version` y `tech_categories.has_version`.
+
 **Vista previa de la última actividad (v1.18.0)**
 - En la lista de tickets, al dejar el mouse unos instantes (0,7 s) sobre el asunto de un ticket, aparece un recuadro con **lo último que pasó**: quién lo hizo, qué fue (creó el ticket, respondió el usuario, respuesta, nota privada o reenvío), hace cuánto y la fecha y hora, y el texto.
 - El texto se muestra limpio: sin el historial citado del correo ni imágenes, y cortado a unas líneas. Las notas privadas se ven con su fondo amarillo.

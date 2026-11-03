@@ -155,7 +155,7 @@ export const subtechName = (id) => byId(state.meta?.techSubcategories, id)?.name
 /** Nombre de cada campo del ticket. El superadmin lo puede cambiar (Configuración → Campos del ticket). */
 export const FIELD_LABEL_DEFAULTS = {
   status: 'Estado', priority: 'Prioridad', category: 'Área solicitante', type: 'Tipo de ticket', tech: 'Categoría técnica', subtech: 'Subcategoría técnica',
-  assignee: 'Asignado a', contact: 'Contacto', channel: 'Canal', sla: 'SLA',
+  assignee: 'Asignado a', contact: 'Contacto', channel: 'Canal', sla: 'SLA', version: 'Versión',
 };
 export const fieldLabel = (key) => state.meta?.fieldLabels?.[key] || FIELD_LABEL_DEFAULTS[key] || key;
 export const categoryName = (id) => byId(state.meta?.categories, id)?.name || '';

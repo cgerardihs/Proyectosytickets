@@ -47,7 +47,7 @@ const SPECIFIC = {
   ticket: [
     ['subject', 'Asunto', 'text', (r) => r.subject], ['number', 'Número', 'text', (r) => `#${r.number}`], ['status', 'Estado', 'text', (r) => r.status],
     ['status_kind', 'Tipo de estado', 'text', (r) => KIND[r.status_kind]], ['priority', 'Prioridad', 'text', (r) => PRIORITY[r.priority]],
-    ['channel', 'Canal', 'text', (r) => CHANNEL[r.channel] || r.channel], ['tech', () => fieldLabel('tech'), 'text', (r) => r.tech], ['subtech', () => fieldLabel('subtech'), 'text', (r) => r.subtech],
+    ['channel', 'Canal', 'text', (r) => CHANNEL[r.channel] || r.channel], ['tech', () => fieldLabel('tech'), 'text', (r) => r.tech], ['subtech', () => fieldLabel('subtech'), 'text', (r) => r.subtech], ['version', 'Versión', 'text', (r) => r.version],
     ['type', () => fieldLabel('type'), 'text', (r) => r.ticket_type], ['area', () => fieldLabel('category'), 'text', (r) => r.area], ['group', 'Grupo', 'text', (r) => r.group_name],
     ['assignee', () => fieldLabel('assignee'), 'text', (r) => r.assignee], ['contact', 'Contacto', 'text', (r) => r.contact], ['contact_email', 'Email del contacto', 'text', (r) => r.contact_email],
     ['contact_area', 'Área del contacto', 'text', (r) => r.contact_area], ['contact_job', 'Cargo del contacto', 'text', (r) => r.contact_job], ['contact_vip', 'Contacto VIP', 'bool', (r) => r.contact_vip],

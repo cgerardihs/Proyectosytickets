@@ -1572,3 +1572,6 @@ table.ex-g .na { color: #c0c5cd; }
 .tpv-load, .tpv-empty { padding: 16px 14px; font-size: 12.5px; color: var(--muted); display: flex; gap: 8px; align-items: center; margin: 0; }
 .tpv-load .spinner { width: 14px; height: 14px; border-width: 2px; }
 @media (prefers-reduced-motion: reduce) { .tpv { transition: none; } }
+
+/* ---------- v1.19: versión de la solución ---------- */
+.tk-version { display: inline-block; font-size: 12px; font-weight: 600; color: #1e3a8a; background: #e0e7ff; border-radius: 10px; padding: 2px 8px; white-space: nowrap; }

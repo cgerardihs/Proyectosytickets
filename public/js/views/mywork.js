@@ -1,5 +1,6 @@
 import { api, esc, icon, relTime, fmtShortDate, priorityBadge, emptyState } from '../core.js';
 import { setCrumbs } from '../app.js';
+import { attachTicketPreview } from '../ticket-preview.js';
 import { typeIcon, prioIcon, issuePill, openIssueModal } from './issue.js';
 
 export async function render(el) {
@@ -43,4 +44,6 @@ export async function render(el) {
     const li = e.target.closest('[data-key]');
     if (li) openIssueModal(li.dataset.key, { onChange: draw });
   });
+  // v1.19: la misma vista previa de la última actividad que en la lista de tickets
+  return attachTicketPreview(el, '.work-list a[href^="#/tickets/"]');
 }

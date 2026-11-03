@@ -18,10 +18,10 @@ const VIEWS = [
   ['spam', 'Spam'],
   ['trash', 'Papelera'],
 ];
-const FILTER_KEYS = ['status', 'priority', 'assignee', 'category', 'type', 'tech', 'subtech', 'channel', 'created_from', 'created_to', 'tag'];
+const FILTER_KEYS = ['status', 'priority', 'assignee', 'category', 'type', 'tech', 'subtech', 'version', 'channel', 'created_from', 'created_to', 'tag'];
 const SORTS = [['created', 'Hora de creación'], ['activity', 'Última actividad'], ['updated', 'Última modificación'], ['priority', 'Prioridad'], ['due', 'Vencimiento SLA'], ['number', 'Número']];
 // Columnas de la tabla: [clave de orden, nombre (o campo con nombre configurable), clase]
-const COLS = [['channel', 'channel', 'ch'], ['subject', 'Asunto'], ['contact', 'contact'], ['priority', 'priority'], ['status', 'status'], ['tech', 'tech'],
+const COLS = [['channel', 'channel', 'ch'], ['subject', 'Asunto'], ['contact', 'contact'], ['priority', 'priority'], ['status', 'status'], ['tech', 'tech'], ['version', 'version'],
   ['assignee', 'assignee'], ['created', 'Creado'], ['category', 'category']];
 const colLabel = (l) => (/^[a-z]+$/.test(l) ? fieldLabel(l) : l);
 // Orden por defecto al tocar una columna: las fechas y la prioridad empiezan de mayor a menor; el resto, A → Z
@@ -93,7 +93,7 @@ export async function render(el) {
           <th class="cb"><input type="checkbox" data-act="all" aria-label="Seleccionar todos"></th>
           ${COLS.map(([k, l, cls]) => { const on = (q.sort || 'created') === k; const dir = q.order || 'desc'; return `<th class="sortable ${cls || ''} ${on ? 'sorted' : ''}" data-sort="${k}" aria-sort="${on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}" title="Ordenar por ${esc(colLabel(l).toLowerCase())}"><span class="th-sort">${esc(colLabel(l))}<i class="sort-arrow">${on ? (dir === 'asc' ? '▲' : '▼') : '↕'}</i></span></th>`; }).join('')}
         </tr></thead>
-        <tbody><tr><td colspan="10"><div class="loading"><span class="spinner"></span></div></td></tr></tbody>
+        <tbody><tr><td colspan="11"><div class="loading"><span class="spinner"></span></div></td></tr></tbody>
       </table></div>
     </section>`;
 
@@ -120,7 +120,7 @@ export async function render(el) {
       el.querySelector('[data-act=reload]').title = `Actualizar · última vez ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`;
     } catch (e) {
       if (silent) return; // una falla de red en la actualización automática no borra la lista
-      tbody.innerHTML = `<tr><td colspan="10">${emptyState('No se pudieron cargar los tickets', e.message, 'alert')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11">${emptyState('No se pudieron cargar los tickets', e.message, 'alert')}</td></tr>`;
     }
     api('/tickets/counts').then((c) => {
       state.counts = c;
@@ -143,6 +143,7 @@ export async function render(el) {
       <td><button class="cell-edit" data-edit="priority">${priorityBadge(t.priority)}${icon('down', 12)}</button></td>
       <td><button class="cell-edit" data-edit="status_id"><span class="badge" style="--c:${esc(st?.color || '#64748b')}">${esc(st?.name || '—')}</span>${icon('down', 12)}</button></td>
       <td><button class="cell-edit" data-edit="tech_category_id"><span class="cell-stack"><span class="ellip">${esc(techName(t.tech_category_id) || '—')}</span>${t.tech_subcategory_id ? `<small class="muted ellip">${esc(subtechName(t.tech_subcategory_id))}</small>` : ''}</span>${icon('down', 12)}</button></td>
+      <td class="nowrap">${t.version ? `<span class="tk-version">${esc(t.version)}</span>` : '<span class="muted">—</span>'}</td>
       <td><button class="cell-edit" data-edit="assignee_id">${t.assignee_id ? `${avatar(t.assignee_id, 20)}<span class="ellip">${esc(userName(t.assignee_id))}</span>` : '<span class="muted">Sin asignar</span>'}${icon('down', 12)}</button></td>
       <td title="${esc(fmtDateTime(t.created_at))}" class="nowrap">${relTime(t.created_at)}</td>
       <td><button class="cell-edit" data-edit="category_id"><span class="ellip">${esc(categoryName(t.category_id) || '—')}</span>${icon('down', 12)}</button></td>
@@ -160,7 +161,7 @@ export async function render(el) {
     el.querySelector('.pager').innerHTML = `${sizeSel} ${to >= data.total && data.page === 1 ? `${data.total.toLocaleString('es-AR')} ticket${data.total === 1 ? '' : 's'}` : `${from} – ${to} de ${data.total.toLocaleString('es-AR')}`}${nav}`;
     tbody.innerHTML = data.items.length
       ? data.items.map((t) => (fresh.includes(t.number) ? rowHtml(t).replace('<tr ', '<tr data-new ') : rowHtml(t))).join('')
-      : `<tr><td colspan="10">${emptyState(q.q || FILTER_KEYS.some((k) => q[k]) ? 'Ningún ticket coincide' : 'No hay tickets en esta vista', '', 'inbox')}</td></tr>`;
+      : `<tr><td colspan="11">${emptyState(q.q || FILTER_KEYS.some((k) => q[k]) ? 'Ningún ticket coincide' : 'No hay tickets en esta vista', '', 'inbox')}</td></tr>`;
     syncBulk();
   }
 
@@ -379,6 +380,7 @@ function openFilters(q, setQ) {
       ${multi('category', m.categories, fieldLabel('category'), `<option value="none" ${(q.category || '').split(',').includes('none') ? 'selected' : ''}>— Sin ${esc(fieldLabel('category').toLowerCase())}</option>`)}
       ${multi('tech', m.techCategories, fieldLabel('tech'), `<option value="none" ${(q.tech || '').split(',').includes('none') ? 'selected' : ''}>— Sin ${esc(fieldLabel('tech').toLowerCase())}</option>`)}
       ${(m.techSubcategories || []).length ? multi('subtech', m.techSubcategories.map((x) => ({ id: x.id, name: `${m.techCategories.find((c) => c.id === x.tech_category_id)?.name?.split(' - ')[0] || ''} › ${x.name}` })), fieldLabel('subtech')) : ''}
+      ${(m.ticketVersions || []).length ? multi('version', m.ticketVersions.map((x) => ({ id: x, name: x })), 'Versión de la solución', `<option value="none" ${(q.version || '').split(',').includes('none') ? 'selected' : ''}>— Sin versión</option>`) : ''}
       ${multi('type', m.types, fieldLabel('type'))}
       ${multi('channel', Object.entries(CHANNEL).map(([id, name]) => ({ id, name })), fieldLabel('channel'))}
       <div>
