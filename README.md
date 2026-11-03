@@ -95,6 +95,16 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Columnas de la lista de tickets (v1.20.0)**
+- Botón **Columnas** en la barra de la lista: se eligen las columnas que se ven (casilla) y su orden (arrastrando, o con las flechas desde el teclado). **Asunto** queda siempre visible. **Restablecer** vuelve a lo de fábrica.
+- Columnas nuevas para elegir: **Número, Empresa, Subcategoría, Tipo, Última actividad, Actualizado, Vence el SLA y Etiquetas**. Las que tienen orden se ordenan tocando el título, como las demás.
+- **Ancho con el mouse**: se arrastra el borde derecho del título de la columna (mínimo 60 px; mientras se arrastra se ve el ancho). **Doble clic** en ese borde la ajusta al contenido. Mientras nadie toca los anchos, la tabla se acomoda sola como siempre.
+- Se guarda **por agente y por vista**, en la base: te sigue en otra computadora y no cambia lo que ven los demás. "Mis abiertos y pendientes" arranca con columnas pensadas para el día a día (asunto, contacto, prioridad, estado, vence el SLA y última actividad).
+- **Vistas compartidas**: las columnas de quien creó la vista son el punto de partida de los demás; cada uno las puede ajustar para sí.
+- La exportación a CSV sigue sacando todos los campos.
+- Corrección: al guardar una vista con el filtro **Versión** (o las fechas de creación), ahora el filtro queda guardado.
+- **Migración 26**: tabla `user_view_prefs` y `custom_views.columns`.
+
 **Versión de la solución en los tickets de Equis (v1.19.0)**
 - Los tickets de las categorías técnicas de **Equis** tienen un campo nuevo, **Versión de la solución**, en el panel de propiedades: en qué versión viene la solución del problema.
 - Siempre con número y año: **"versión 11 2026"**. Si se escribe "11/2026", "version 11 2026" o "11-2026", se guarda igual, "versión 11 2026", para que los filtros y los informes agrupen bien. Mientras se escribe, sugiere las versiones ya usadas. Cualquier otro formato se rechaza con un mensaje que explica cómo va.

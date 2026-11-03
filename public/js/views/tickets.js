@@ -20,10 +20,34 @@ const VIEWS = [
 ];
 const FILTER_KEYS = ['status', 'priority', 'assignee', 'category', 'type', 'tech', 'subtech', 'version', 'channel', 'created_from', 'created_to', 'tag'];
 const SORTS = [['created', 'Hora de creación'], ['activity', 'Última actividad'], ['updated', 'Última modificación'], ['priority', 'Prioridad'], ['due', 'Vencimiento SLA'], ['number', 'Número']];
-// Columnas de la tabla: [clave de orden, nombre (o campo con nombre configurable), clase]
-const COLS = [['channel', 'channel', 'ch'], ['subject', 'Asunto'], ['contact', 'contact'], ['priority', 'priority'], ['status', 'status'], ['tech', 'tech'], ['version', 'version'],
-  ['assignee', 'assignee'], ['created', 'Creado'], ['category', 'category']];
+// Columnas de la lista (v1.20): cada agente elige cuáles ver, en qué orden y con qué ancho, en cada vista.
+// label: nombre (o campo con nombre configurable); sort: clave de orden del servidor; w: ancho de partida (px).
+// Mantener alineado con TICKET_COLUMNS de lib/view-prefs.js.
+const COLDEFS = {
+  channel: { label: 'channel', sort: 'channel', w: 70, cls: 'ch' },
+  subject: { label: 'Asunto', sort: 'subject', w: 340, lock: true },
+  contact: { label: 'contact', sort: 'contact', w: 170 },
+  priority: { label: 'priority', sort: 'priority', w: 120 },
+  status: { label: 'status', sort: 'status', w: 140 },
+  tech: { label: 'tech', sort: 'tech', w: 230 },
+  version: { label: 'version', sort: 'version', w: 150 },
+  assignee: { label: 'assignee', sort: 'assignee', w: 200 },
+  created: { label: 'Creado', sort: 'created', w: 120 },
+  category: { label: 'category', sort: 'category', w: 170 },
+  number: { label: 'Número', sort: 'number', w: 90, nueva: true },
+  company: { label: 'Empresa', sort: 'company', w: 150, nueva: true },
+  subtech: { label: 'subtech', sort: 'subtech', w: 170, nueva: true },
+  type: { label: 'type', sort: 'type', w: 140, nueva: true },
+  activity: { label: 'Última actividad', sort: 'activity', w: 140, nueva: true },
+  updated: { label: 'Actualizado', sort: 'updated', w: 130, nueva: true },
+  sla: { label: 'Vence el SLA', sort: 'due', w: 150, nueva: true },
+  tags: { label: 'Etiquetas', w: 180, nueva: true },
+};
+const DEFAULT_ON = ['channel', 'subject', 'contact', 'priority', 'status', 'tech', 'version', 'assignee', 'created', 'category'];
+// Algunas vistas arrancan con columnas pensadas para su uso
+const VIEW_START = { mine: ['channel', 'subject', 'contact', 'priority', 'status', 'sla', 'activity'] };
 const colLabel = (l) => (/^[a-z]+$/.test(l) ? fieldLabel(l) : l);
+const COLS = Object.entries(COLDEFS).filter(([, d]) => d.sort).map(([k, d]) => [d.sort, d.label]);
 // Orden por defecto al tocar una columna: las fechas y la prioridad empiezan de mayor a menor; el resto, A → Z
 const DESC_FIRST = new Set(['created', 'priority', 'number', 'activity', 'updated'])
 
@@ -84,16 +108,15 @@ export async function render(el) {
         <span class="grow"></span>
         <span class="pager"></span>
         ${isManager() ? `<button class="icon-btn" data-act="export" title="Exportar CSV">${icon('download', 17)}</button>` : ''}
+        <span class="tkc-wrap"><button class="btn sm" data-act="columns" aria-expanded="false" title="Elegir columnas">${icon('columns', 15)} Columnas</button></span>
         <button class="icon-btn" data-act="reload" title="Actualizar">${icon('refresh', 17)}</button>
         <label class="auto-refresh" title="Actualizar la lista sola">${icon('clock', 13)}<select class="input sm" data-act="every" aria-label="Actualizar la lista sola">
           ${[[0, 'Sin actualizar'], [30, 'Cada 30 s'], [60, 'Cada 1 min'], [120, 'Cada 2 min'], [300, 'Cada 5 min']].map(([v, l]) => `<option value="${v}" ${refreshEvery() === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </div>
       <div class="table-wrap"><table class="tbl tickets-tbl">
-        <thead><tr>
-          <th class="cb"><input type="checkbox" data-act="all" aria-label="Seleccionar todos"></th>
-          ${COLS.map(([k, l, cls]) => { const on = (q.sort || 'created') === k; const dir = q.order || 'desc'; return `<th class="sortable ${cls || ''} ${on ? 'sorted' : ''}" data-sort="${k}" aria-sort="${on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}" title="Ordenar por ${esc(colLabel(l).toLowerCase())}"><span class="th-sort">${esc(colLabel(l))}<i class="sort-arrow">${on ? (dir === 'asc' ? '▲' : '▼') : '↕'}</i></span></th>`; }).join('')}
-        </tr></thead>
-        <tbody><tr><td colspan="11"><div class="loading"><span class="spinner"></span></div></td></tr></tbody>
+        <colgroup></colgroup>
+        <thead><tr></tr></thead>
+        <tbody><tr><td colspan="20"><div class="loading"><span class="spinner"></span></div></td></tr></tbody>
       </table></div>
     </section>`;
 
@@ -120,7 +143,7 @@ export async function render(el) {
       el.querySelector('[data-act=reload]').title = `Actualizar · última vez ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`;
     } catch (e) {
       if (silent) return; // una falla de red en la actualización automática no borra la lista
-      tbody.innerHTML = `<tr><td colspan="11">${emptyState('No se pudieron cargar los tickets', e.message, 'alert')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="20">${emptyState('No se pudieron cargar los tickets', e.message, 'alert')}</td></tr>`;
     }
     api('/tickets/counts').then((c) => {
       state.counts = c;
@@ -131,24 +154,214 @@ export async function render(el) {
     }).catch(() => {});
   }
 
+  // ---------- Columnas (v1.20) ----------
+  const isCustom = view.startsWith('custom:');
+  const customView = isCustom ? state.meta.views.find((v) => `custom:${v.id}` === view) : null;
+  const normCols = (c) => {
+    const order = (c?.order || []).filter((k) => COLDEFS[k]);
+    for (const k of Object.keys(COLDEFS)) if (!order.includes(k)) order.push(k);
+    const on = (c?.on || DEFAULT_ON).filter((k) => COLDEFS[k]);
+    if (!on.includes('subject')) on.unshift('subject');
+    return { order, on, w: { ...(c?.w || {}) } };
+  };
+  // Lo del agente; si no tiene, lo de quien creó la vista compartida; si no, lo de fábrica
+  let cols = normCols(state.meta.viewPrefs?.[view] || customView?.columns || { on: VIEW_START[view] || DEFAULT_ON });
+  const visibleCols = () => cols.order.filter((k) => cols.on.includes(k));
+  const saveCols = debounce(async () => {
+    try {
+      const saved = await api(`/me/view-prefs/${encodeURIComponent(view)}`, { method: 'PUT', body: cols });
+      state.meta.viewPrefs = { ...(state.meta.viewPrefs || {}), [view]: saved };
+    } catch (e) { toastError(e); }
+  }, 600);
+  const cellOf = {
+    channel: (t) => `<td class="ch" title="${esc(CHANNEL[t.channel] || t.channel)}">${icon(CHANNEL_ICON[t.channel] || 'ticket', 15)}</td>`,
+    subject: (t) => {
+      const sla = slaState(t);
+      return `<td class="subj"><a href="#/tickets/${t.number}" data-pv="${esc(String(t.last_activity_at || t.updated_at || ''))}"><b>#${t.number}:</b> ${esc(t.subject)}</a>
+        <div class="sub">${sla ? `<span class="sla ${sla.cls}">${icon('clock', 11)} ${esc(sla.label)}</span>` : ''}${t.project_key ? `<span class="chip sm proj-chip" title="Convertido en proyecto de desarrollo">${icon('projects', 11)} ${esc(t.project_key)}</span>` : ''}${(t.tags || []).map((g) => `<span class="tag">${esc(g)}</span>`).join('')}</div></td>`;
+    },
+    contact: (t) => `<td><span class="ellip" title="${esc(t.contact_email || '')}">${esc(t.contact_name || '')}</span></td>`,
+    priority: (t) => `<td><button class="cell-edit" data-edit="priority">${priorityBadge(t.priority)}${icon('down', 12)}</button></td>`,
+    status: (t) => { const st = statusById(t.status_id); return `<td><button class="cell-edit" data-edit="status_id"><span class="badge" style="--c:${esc(st?.color || '#64748b')}">${esc(st?.name || '—')}</span>${icon('down', 12)}</button></td>`; },
+    tech: (t) => `<td><button class="cell-edit" data-edit="tech_category_id"><span class="cell-stack"><span class="ellip">${esc(techName(t.tech_category_id) || '—')}</span>${t.tech_subcategory_id ? `<small class="muted ellip">${esc(subtechName(t.tech_subcategory_id))}</small>` : ''}</span>${icon('down', 12)}</button></td>`,
+    version: (t) => `<td class="nowrap">${t.version ? `<span class="tk-version">${esc(t.version)}</span>` : '<span class="muted">—</span>'}</td>`,
+    assignee: (t) => `<td><button class="cell-edit" data-edit="assignee_id">${t.assignee_id ? `${avatar(t.assignee_id, 20)}<span class="ellip">${esc(userName(t.assignee_id))}</span>` : '<span class="muted">Sin asignar</span>'}${icon('down', 12)}</button></td>`,
+    created: (t) => `<td title="${esc(fmtDateTime(t.created_at))}" class="nowrap">${relTime(t.created_at)}</td>`,
+    category: (t) => `<td><button class="cell-edit" data-edit="category_id"><span class="ellip">${esc(categoryName(t.category_id) || '—')}</span>${icon('down', 12)}</button></td>`,
+    number: (t) => `<td class="nowrap"><a href="#/tickets/${t.number}" class="tk-num">#${t.number}</a></td>`,
+    company: (t) => `<td><span class="ellip">${esc(t.company_name || '—')}</span></td>`,
+    subtech: (t) => `<td><span class="ellip">${esc(t.tech_subcategory_id ? subtechName(t.tech_subcategory_id) : '—')}</span></td>`,
+    type: (t) => `<td><span class="ellip">${esc((state.meta.types || []).find((x) => x.id === t.type_id)?.name || '—')}</span></td>`,
+    activity: (t) => `<td title="${esc(fmtDateTime(t.last_activity_at))}" class="nowrap">${t.last_activity_at ? relTime(t.last_activity_at) : '—'}</td>`,
+    updated: (t) => `<td title="${esc(fmtDateTime(t.updated_at))}" class="nowrap">${t.updated_at ? relTime(t.updated_at) : '—'}</td>`,
+    sla: (t) => { const sla = slaState(t); return `<td class="nowrap">${sla ? `<span class="sla ${sla.cls}">${icon('clock', 11)} ${esc(sla.label)}</span>` : '<span class="muted">—</span>'}</td>`; },
+    tags: (t) => `<td>${(t.tags || []).map((g) => `<span class="tag">${esc(g)}</span>`).join('') || '<span class="muted">—</span>'}</td>`,
+  };
+
+  // Ancho: mientras nadie lo toca, la tabla se acomoda sola (como siempre). Al ajustar una columna, se fijan todos.
+  const table = el.querySelector('.tickets-tbl');
+  function applyWidths() {
+    const vis = visibleCols();
+    const fixed = Object.keys(cols.w).length > 0;
+    table.classList.toggle('tk-fixed', fixed);
+    el.querySelector('.tickets-tbl colgroup').innerHTML = `<col style="width:40px">${vis.map((k) => `<col data-k="${k}" ${fixed ? `style="width:${cols.w[k] || COLDEFS[k].w}px"` : ''}>`).join('')}`;
+    table.style.width = fixed ? `${40 + vis.reduce((t, k) => t + (cols.w[k] || COLDEFS[k].w), 0)}px` : '';
+  }
+  function headHtml() {
+    const sortKey = q.sort || 'created';
+    const dir = q.order || 'desc';
+    el.querySelector('.tickets-tbl thead tr').innerHTML = `<th class="cb"><input type="checkbox" data-act="all" aria-label="Seleccionar todos"></th>${visibleCols().map((k) => {
+      const d = COLDEFS[k];
+      const label = colLabel(d.label);
+      const on = d.sort && sortKey === d.sort;
+      return `<th class="${d.sort ? 'sortable' : ''} ${d.cls || ''} ${on ? 'sorted' : ''}" data-col="${k}" ${d.sort ? `data-sort="${d.sort}" aria-sort="${on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}" title="Ordenar por ${esc(label.toLowerCase())}"` : ''}>
+        <span class="th-sort">${esc(label)}${d.sort ? `<i class="sort-arrow">${on ? (dir === 'asc' ? '▲' : '▼') : '↕'}</i>` : ''}</span>
+        <span class="tk-rz" data-rz="${k}" title="Arrastrá para cambiar el ancho; doble clic para ajustarlo al contenido" aria-hidden="true"></span></th>`;
+    }).join('')}`;
+    applyWidths();
+  }
+  headHtml();
+
   function rowHtml(t) {
-    const sla = slaState(t);
-    const st = statusById(t.status_id);
     return `<tr data-num="${t.number}" class="${selected.has(t.number) ? 'sel' : ''}">
       <td class="cb"><input type="checkbox" data-sel="${t.number}" ${selected.has(t.number) ? 'checked' : ''} aria-label="Seleccionar #${t.number}"></td>
-      <td class="ch" title="${esc(CHANNEL[t.channel] || t.channel)}">${icon(CHANNEL_ICON[t.channel] || 'ticket', 15)}</td>
-      <td class="subj"><a href="#/tickets/${t.number}" data-pv="${esc(String(t.last_activity_at || t.updated_at || ''))}"><b>#${t.number}:</b> ${esc(t.subject)}</a>
-        <div class="sub">${sla ? `<span class="sla ${sla.cls}">${icon('clock', 11)} ${esc(sla.label)}</span>` : ''}${t.project_key ? `<span class="chip sm proj-chip" title="Convertido en proyecto de desarrollo">${icon('projects', 11)} ${esc(t.project_key)}</span>` : ''}${(t.tags || []).map((g) => `<span class="tag">${esc(g)}</span>`).join('')}</div></td>
-      <td><span class="ellip" title="${esc(t.contact_email || '')}">${esc(t.contact_name || '')}</span></td>
-      <td><button class="cell-edit" data-edit="priority">${priorityBadge(t.priority)}${icon('down', 12)}</button></td>
-      <td><button class="cell-edit" data-edit="status_id"><span class="badge" style="--c:${esc(st?.color || '#64748b')}">${esc(st?.name || '—')}</span>${icon('down', 12)}</button></td>
-      <td><button class="cell-edit" data-edit="tech_category_id"><span class="cell-stack"><span class="ellip">${esc(techName(t.tech_category_id) || '—')}</span>${t.tech_subcategory_id ? `<small class="muted ellip">${esc(subtechName(t.tech_subcategory_id))}</small>` : ''}</span>${icon('down', 12)}</button></td>
-      <td class="nowrap">${t.version ? `<span class="tk-version">${esc(t.version)}</span>` : '<span class="muted">—</span>'}</td>
-      <td><button class="cell-edit" data-edit="assignee_id">${t.assignee_id ? `${avatar(t.assignee_id, 20)}<span class="ellip">${esc(userName(t.assignee_id))}</span>` : '<span class="muted">Sin asignar</span>'}${icon('down', 12)}</button></td>
-      <td title="${esc(fmtDateTime(t.created_at))}" class="nowrap">${relTime(t.created_at)}</td>
-      <td><button class="cell-edit" data-edit="category_id"><span class="ellip">${esc(categoryName(t.category_id) || '—')}</span>${icon('down', 12)}</button></td>
+      ${visibleCols().map((k) => cellOf[k](t)).join('')}
     </tr>`;
   }
+
+  // Panel de columnas
+  function colsPanel(anchor) {
+    const wrap = anchor.closest('.tkc-wrap');
+    let p = wrap.querySelector('.tkc-panel');
+    if (p) { p.remove(); anchor.setAttribute('aria-expanded', 'false'); anchor.classList.remove('active'); return; }
+    p = document.createElement('div');
+    p.className = 'tkc-panel';
+    p.setAttribute('role', 'dialog');
+    p.setAttribute('aria-label', 'Columnas de la vista');
+    wrap.appendChild(p);
+    anchor.setAttribute('aria-expanded', 'true');
+    anchor.classList.add('active');
+    const draw = () => {
+      p.innerHTML = `<div class="tkc-head"><b>Columnas de "${esc(viewName)}"</b><p>Arrastrá para cambiar el orden. Se guarda para vos, en esta vista.</p></div>
+        <ul class="tkc-list">${cols.order.map((k, i) => `<li class="tkc-item" draggable="true" data-k="${k}">
+          <span class="tkc-grip" aria-hidden="true">${icon('grip', 14)}</span>
+          <label><input type="checkbox" data-on="${k}" ${cols.on.includes(k) ? 'checked' : ''} ${COLDEFS[k].lock ? 'disabled' : ''}> ${esc(colLabel(COLDEFS[k].label))}</label>
+          ${COLDEFS[k].lock ? '<small class="muted">siempre</small>' : ''}
+          <button type="button" class="tkc-mv" data-mv="-1" data-k="${k}" aria-label="Subir ${esc(colLabel(COLDEFS[k].label))}" ${i === 0 ? 'disabled' : ''}>▲</button><button type="button" class="tkc-mv" data-mv="1" data-k="${k}" aria-label="Bajar ${esc(colLabel(COLDEFS[k].label))}" ${i === cols.order.length - 1 ? 'disabled' : ''}>▼</button></li>`).join('')}</ul>
+        <div class="tkc-foot"><button type="button" class="link-btn" data-reset>Restablecer columnas y anchos</button><span class="grow"></span><span class="muted">${cols.on.length} de ${cols.order.length} visibles</span></div>`;
+    };
+    const changed = () => { headHtml(); if (data) draw2(); saveCols(); };
+    const draw2 = () => drawRows();
+    draw();
+    p.addEventListener('change', (e) => {
+      const k = e.target.dataset.on;
+      if (!k) return;
+      cols.on = e.target.checked ? [...cols.on, k] : cols.on.filter((x) => x !== k);
+      changed();
+      draw();
+    });
+    p.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const mv = e.target.closest('[data-mv]');
+      if (mv) {
+        const i = cols.order.indexOf(mv.dataset.k);
+        const j = i + Number(mv.dataset.mv);
+        if (j < 0 || j >= cols.order.length) return;
+        [cols.order[i], cols.order[j]] = [cols.order[j], cols.order[i]];
+        changed();
+        draw();
+        p.querySelector(`[data-mv="${mv.dataset.mv}"][data-k="${mv.dataset.k}"]`)?.focus();
+        return;
+      }
+      if (e.target.closest('[data-reset]')) {
+        try { await api(`/me/view-prefs/${encodeURIComponent(view)}`, { method: 'DELETE' }); } catch (er) { return toastError(er); }
+        if (state.meta.viewPrefs) delete state.meta.viewPrefs[view];
+        if (customView && customView.owner_id === state.me.id) customView.columns = null;
+        cols = normCols(customView?.owner_id !== state.me.id && customView?.columns ? customView.columns : { on: VIEW_START[view] || DEFAULT_ON });
+        headHtml();
+        if (data) drawRows();
+        draw();
+        toast('Columnas y anchos de fábrica');
+      }
+    });
+    let dragK = null;
+    p.addEventListener('dragstart', (e) => { const li = e.target.closest('.tkc-item'); dragK = li?.dataset.k; li?.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    p.addEventListener('dragover', (e) => { e.preventDefault(); p.querySelectorAll('.over').forEach((x) => x.classList.remove('over')); e.target.closest('.tkc-item')?.classList.add('over'); });
+    p.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const to = e.target.closest('.tkc-item')?.dataset.k;
+      if (!dragK || !to || to === dragK) return;
+      cols.order = cols.order.filter((x) => x !== dragK);
+      cols.order.splice(cols.order.indexOf(to), 0, dragK);
+      changed();
+      draw();
+    });
+    p.addEventListener('dragend', () => { dragK = null; p.querySelectorAll('.dragging, .over').forEach((x) => x.classList.remove('dragging', 'over')); });
+    const outside = (e) => { if (!wrap.contains(e.target)) { p.remove(); anchor.setAttribute('aria-expanded', 'false'); anchor.classList.remove('active'); document.removeEventListener('mousedown', outside); } };
+    setTimeout(() => document.addEventListener('mousedown', outside), 0);
+  }
+
+  // Ajustar el ancho arrastrando el borde del título; doble clic lo ajusta al contenido
+  let rz = null;
+  const tip = document.createElement('div');
+  tip.className = 'tk-rz-tip';
+  const fixAll = () => {
+    if (Object.keys(cols.w).length) return;
+    el.querySelectorAll('.tickets-tbl thead th[data-col]').forEach((th) => { cols.w[th.dataset.col] = Math.max(60, Math.ceil(th.getBoundingClientRect().width) + 4); });
+  };
+  el.querySelector('.tickets-tbl thead').addEventListener('mousedown', (e) => {
+    const h = e.target.closest('[data-rz]');
+    if (!h) return;
+    e.preventDefault();
+    e.stopPropagation();
+    fixAll();
+    rz = { k: h.dataset.rz, x: e.clientX, w: cols.w[h.dataset.rz] || COLDEFS[h.dataset.rz].w, h };
+    h.classList.add('active');
+    document.body.classList.add('tk-resizing');
+    document.body.appendChild(tip);
+    applyWidths();
+  });
+  const onMove = (e) => {
+    if (!rz) return;
+    const w = Math.max(60, Math.min(1000, Math.round(rz.w + e.clientX - rz.x)));
+    cols.w[rz.k] = w;
+    applyWidths();
+    tip.textContent = `${colLabel(COLDEFS[rz.k].label)}: ${w} px`;
+    tip.style.left = `${e.clientX + 12}px`;
+    tip.style.top = `${e.clientY + 14}px`;
+  };
+  const onUp = () => {
+    if (!rz) return;
+    rz.h.classList.remove('active');
+    document.body.classList.remove('tk-resizing');
+    tip.remove();
+    rz = null;
+    saveCols();
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  el.querySelector('.tickets-tbl thead').addEventListener('dblclick', (e) => {
+    const h = e.target.closest('[data-rz]');
+    if (!h) return;
+    e.stopPropagation();
+    const k = h.dataset.rz;
+    fixAll();
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;left:-9999px;top:0';
+    probe.className = 'tickets-tbl';
+    document.body.appendChild(probe);
+    let max = 0;
+    el.querySelectorAll(`.tickets-tbl th[data-col="${k}"] .th-sort, .tickets-tbl tbody tr`).forEach((n) => {
+      const cell = n.matches('tr') ? n.children[visibleCols().indexOf(k) + 1] : n;
+      if (!cell) return;
+      probe.innerHTML = cell.innerHTML;
+      max = Math.max(max, probe.scrollWidth);
+    });
+    probe.remove();
+    cols.w[k] = Math.max(60, Math.min(k === 'subject' ? 560 : 420, max + 34));
+    applyWidths();
+    saveCols();
+  });
 
   function draw(fresh = []) {
     const from = data.total ? (data.page - 1) * data.limit + 1 : 0;
@@ -159,9 +372,13 @@ export async function render(el) {
       ? `<button class="icon-btn sm" data-act="prev" ${data.page <= 1 ? 'disabled' : ''} aria-label="Anterior">${icon('left', 16)}</button>
       <button class="icon-btn sm" data-act="next" ${to >= data.total ? 'disabled' : ''} aria-label="Siguiente">${icon('right', 16)}</button>` : '';
     el.querySelector('.pager').innerHTML = `${sizeSel} ${to >= data.total && data.page === 1 ? `${data.total.toLocaleString('es-AR')} ticket${data.total === 1 ? '' : 's'}` : `${from} – ${to} de ${data.total.toLocaleString('es-AR')}`}${nav}`;
+    drawRows(fresh);
+  }
+
+  function drawRows(fresh = []) {
     tbody.innerHTML = data.items.length
       ? data.items.map((t) => (fresh.includes(t.number) ? rowHtml(t).replace('<tr ', '<tr data-new ') : rowHtml(t))).join('')
-      : `<tr><td colspan="11">${emptyState(q.q || FILTER_KEYS.some((k) => q[k]) ? 'Ningún ticket coincide' : 'No hay tickets en esta vista', '', 'inbox')}</td></tr>`;
+      : `<tr><td colspan="${visibleCols().length + 1}">${emptyState(q.q || FILTER_KEYS.some((k) => q[k]) ? 'Ningún ticket coincide' : 'No hay tickets en esta vista', '', 'inbox')}</td></tr>`;
     syncBulk();
   }
 
@@ -223,6 +440,7 @@ export async function render(el) {
         return patchTicket(num, { [field]: v });
       });
     }
+    if (e.target.closest('[data-rz], .tkc-panel')) return; // ajustar el ancho o usar el panel de columnas no ordena
     const th = e.target.closest('th[data-sort]');
     if (th) {
       const k = th.dataset.sort;
@@ -246,6 +464,7 @@ export async function render(el) {
     if (act === 'prev') setQ({ page: data.page - 1 });
     if (act === 'next') setQ({ page: data.page + 1 });
     if (act === 'reload') load({ silent: true });
+    if (act === 'columns') return colsPanel(a);
     if (act === 'filters') openFilters(q, setQ);
     if (act === 'clear-filters') setQ(Object.fromEntries([...FILTER_KEYS, 'q'].map((k) => [k, ''])));
     if (act === 'newview') saveView(q);
@@ -344,7 +563,7 @@ export async function render(el) {
   // v1.18: vista previa de la última actividad al dejar el mouse sobre el asunto
   const offPreview = attachTicketPreview(el);
   load();
-  return () => offPreview();
+  return () => { offPreview(); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
 }
 
 /** Cada cuántos segundos se actualiza sola la lista (preferencia de cada agente; de fábrica, 1 minuto). */
