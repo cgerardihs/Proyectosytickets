@@ -279,7 +279,9 @@ export async function render(el, [num]) {
           <time title="${esc(fmtDateTime(m.created_at))}">${relTime(m.created_at)}</time>
           ${canEditNote(m) ? `<button type="button" class="icon-btn sm msg-edit" data-edit-note="${m.id}" title="Editar la nota" aria-label="Editar la nota">${icon('edit', 14)}</button>` : ''}</header>
         ${(() => { const body = sanitize(m.body_html, { blockRemote: m.kind === 'customer' }); return `${body.includes('data-remote-src') ? `<div class="remote-note">${icon('shield', 13)} Las imágenes externas de este correo no se cargaron (pueden avisarle al remitente que lo abriste). <button type="button" class="link-btn" data-show-imgs>Mostrar imágenes</button></div>` : ''}<div class="msg-html">${body}</div>`; })()}
-        ${m.attachments?.some((a) => !a.inline) ? `<div class="atts">${m.attachments.filter((a) => !a.inline).map((a) => `<a class="chip" href="/api/attachments/${a.id}" target="_blank" rel="noopener">${icon('clip', 12)} ${esc(a.filename)} <small>${fmtSize(a.size)}</small></a>`).join('')}</div>` : ''}
+        ${m.attachments?.some((a) => !a.inline) ? `<div class="atts">${m.attachments.filter((a) => !a.inline).map((a) => (/^image\/(png|jpe?g|gif|webp)$/i.test(a.content_type || '')
+    ? `<a class="att-thumb" href="/api/attachments/${a.id}" target="_blank" rel="noopener" title="${esc(a.filename)} (${fmtSize(a.size)})"><img src="/api/attachments/${a.id}" alt="${esc(a.filename)}" loading="lazy"></a>`
+    : `<a class="chip" href="/api/attachments/${a.id}" target="_blank" rel="noopener">${icon('clip', 12)} ${esc(a.filename)} <small>${fmtSize(a.size)}</small></a>`)).join('')}</div>` : ''}
       </div>
     </article>`;
   }
@@ -466,6 +468,8 @@ export async function render(el, [num]) {
   }
 
   el.addEventListener('click', async (e) => {
+    const pic = e.target.closest('.msg-html img[src^="/api/attachments/"]');
+    if (pic) return window.open(pic.getAttribute('src'), '_blank', 'noopener');
     const editBtn = e.target.closest('[data-edit-note]');
     if (editBtn) return editNote(Number(editBtn.dataset.editNote));
     const imgs = e.target.closest('[data-show-imgs]');

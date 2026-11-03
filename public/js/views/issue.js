@@ -184,7 +184,9 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
         ${d.tickets.length ? `<div class="issue-section"><div class="sec-head"><h4>Tickets de la mesa de ayuda</h4></div><ul class="child-list">${d.tickets.map((t) => `<li><a href="#/tickets/${t.number}" class="grow row gap" data-nav>${icon('ticket', 14)}<b>#${t.number}</b><span class="ellip">${esc(t.subject)}</span></a><small class="muted">${esc(t.status_name || '')}</small></li>`).join('')}</ul></div>` : ''}
         <div class="issue-section">
           <div class="sec-head"><h4>Adjuntos</h4><label class="link-btn">${icon('clip', 13)} Adjuntar<input type="file" multiple hidden data-upload></label></div>
-          ${d.attachments.length ? `<div class="atts">${d.attachments.map((a) => `<span class="chip"><a href="/api/issue-attachments/${a.id}" target="_blank" rel="noopener">${icon('clip', 12)} ${esc(a.filename)}</a> <small>${fmtSize(a.size)}</small><button data-delatt="${a.id}" aria-label="Eliminar adjunto">${icon('x', 11)}</button></span>`).join('')}</div>` : '<p class="muted small">Sin adjuntos.</p>'}
+          ${d.attachments.length ? `<div class="atts">${d.attachments.map((a) => (/^image\/(png|jpe?g|gif|webp)$/i.test(a.content_type || '')
+    ? `<span class="att-thumb-wrap"><a class="att-thumb" href="/api/issue-attachments/${a.id}" target="_blank" rel="noopener" title="${esc(a.filename)} (${fmtSize(a.size)})"><img src="/api/issue-attachments/${a.id}" alt="${esc(a.filename)}" loading="lazy"></a><button data-delatt="${a.id}" aria-label="Eliminar ${esc(a.filename)}">${icon('x', 11)}</button></span>`
+    : `<span class="chip"><a href="/api/issue-attachments/${a.id}" target="_blank" rel="noopener">${icon('clip', 12)} ${esc(a.filename)}</a> <small>${fmtSize(a.size)}</small><button data-delatt="${a.id}" aria-label="Eliminar adjunto">${icon('x', 11)}</button></span>`)).join('')}</div>` : '<p class="muted small">Sin adjuntos.</p>'}
         </div>
         <div class="tabs">
           <button class="${tab === 'comments' ? 'on' : ''}" data-tab="comments">Comentarios <b>${d.comments.length}</b></button>
@@ -376,6 +378,8 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
 
   host.addEventListener('click', async (e) => {
     if (e.target.closest('[data-task-check]')) return; // la casilla no abre la tarea (el cambio va por 'change')
+    const pic = e.target.closest('.desc img[src^="/api/"], .msg-html img[src^="/api/"]');
+    if (pic) { e.stopPropagation(); window.open(pic.getAttribute('src'), '_blank', 'noopener'); return; }
     const stBtn = e.target.closest('[data-task-state]');
     if (stBtn) {
       e.preventDefault();

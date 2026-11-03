@@ -1534,3 +1534,15 @@ table.ex-g .na { color: #c0c5cd; }
 .rh-z { color: #c3c8d2; }
 .rh-month { max-width: 640px; }
 .cal-capline { margin: 4px 0 0; font-size: 11.5px; }
+
+/* ---------- v1.17.3: imágenes pegadas en el cuerpo y miniaturas de imágenes adjuntas ---------- */
+.rte-area img { max-width: 100%; height: auto; border-radius: 4px; }
+.msg-html img[src^="/api/attachments/"], .desc img { max-width: 100%; height: auto; cursor: zoom-in; border-radius: 4px; }
+.desc img { display: block; margin: 6px 0; }
+.att-thumb { display: inline-block; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel-2); line-height: 0; }
+.att-thumb img { display: block; max-width: 220px; max-height: 160px; object-fit: contain; }
+.att-thumb:hover { border-color: var(--brand); }
+.att-thumb-wrap { position: relative; display: inline-block; }
+.att-thumb-wrap button { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(17, 24, 39, .7); color: #fff; display: grid; place-items: center; cursor: pointer; opacity: 0; }
+.att-thumb-wrap:hover button, .att-thumb-wrap button:focus-visible { opacity: 1; }
+.rte-area img[alt="Imagen pegada"], .msg-html img[alt="Imagen pegada"] { display: block; margin: 6px 0; }

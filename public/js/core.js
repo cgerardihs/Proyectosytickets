@@ -419,6 +419,30 @@ export function readFiles(fileList) {
 }
 export const fmtSize = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
+/**
+ * Imagen pegada como data:… para el cuerpo. Las grandes (más de 1 MB) se achican a 1920 px de ancho y se pasan a JPEG,
+ * para que el mensaje no supere el tamaño máximo de un pedido.
+ */
+export async function pastedImageUrl(file) {
+  const asUrl = (blob) => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => ko(new Error('No se pudo leer la imagen')); r.readAsDataURL(blob); });
+  if (file.size <= 1024 * 1024) return asUrl(file);
+  const src = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('No se pudo leer la imagen')); i.src = src; });
+    const scale = Math.min(1, 1920 / img.naturalWidth);
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * scale);
+    c.height = Math.round(img.naturalHeight * scale);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/jpeg', 0.85);
+    if (url.length > 3.9 * 1024 * 1024) throw new Error('La imagen pegada es muy grande (máximo 3 MB)');
+    return url;
+  } finally { URL.revokeObjectURL(src); }
+}
+
 // ---------- Editor enriquecido ----------
 export function richEditor(host, { placeholder = 'Escribí acá…', value = '', minHeight = 120, attachments = true, onSubmit } = {}) {
   host.classList.add('rte');
@@ -470,15 +494,38 @@ export function richEditor(host, { placeholder = 'Escribí acá…', value = '',
     const rm = e.target.closest('[data-rm]');
     if (rm) { files.splice(Number(rm.dataset.rm), 1); renderFiles(); }
   });
+  // v1.17.3: las imágenes pegadas o arrastradas quedan en el texto, donde está el cursor (antes se agregaban como adjuntos).
+  // Lo copiado de Excel o Word trae texto además de una imagen: en ese caso se pega el texto, como siempre.
+  const insertImages = async (imgs, range) => {
+    for (const f of imgs) {
+      try {
+        const url = await pastedImageUrl(f);
+        area.focus();
+        if (range) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+        // La imagen va en su propio renglón y el cursor queda debajo, listo para seguir escribiendo
+        document.execCommand('insertHTML', false, `<img src="${url}" alt="Imagen pegada"><br>`);
+      } catch (er) { toastError(er); }
+    }
+  };
+  const currentRange = () => { const sel = window.getSelection(); return sel.rangeCount && area.contains(sel.anchorNode) ? sel.getRangeAt(0).cloneRange() : null; };
+  area.addEventListener('drop', async (e) => {
+    const dropped = [...(e.dataTransfer?.files || [])];
+    if (!dropped.length) return;
+    e.preventDefault();
+    const imgs = dropped.filter((f) => /^image\/(png|jpe?g|gif|webp)$/.test(f.type));
+    const others = dropped.filter((f) => !imgs.includes(f));
+    await insertImages(imgs, currentRange());
+    if (others.length && attachments) { try { files = files.concat(await readFiles(others)); renderFiles(); } catch (er) { toastError(er); } }
+  });
   area.addEventListener('paste', async (e) => {
     const items = [...(e.clipboardData?.items || [])].filter((i) => i.kind === 'file');
-    if (items.length && attachments) {
+    const hasText = Boolean((e.clipboardData?.getData('text/plain') || '').trim());
+    const imgs = hasText ? [] : items.filter((i) => /^image\/(png|jpe?g|gif|webp)$/.test(i.type)).map((i) => i.getAsFile()).filter(Boolean);
+    const others = hasText ? [] : items.filter((i) => !/^image\/(png|jpe?g|gif|webp)$/.test(i.type)).map((i) => i.getAsFile()).filter(Boolean);
+    if (imgs.length || (others.length && attachments)) {
       e.preventDefault();
-      try {
-        const got = await readFiles(items.map((i) => i.getAsFile()).filter(Boolean));
-        files = files.concat(got.map((f, i) => ({ ...f, name: f.name === 'image.png' ? `captura-${Date.now()}-${i}.png` : f.name })));
-        renderFiles();
-      } catch (er) { toastError(er); }
+      await insertImages(imgs, currentRange());
+      if (others.length && attachments) { try { files = files.concat(await readFiles(others)); renderFiles(); } catch (er) { toastError(er); } }
       return;
     }
     const html = e.clipboardData?.getData('text/html');

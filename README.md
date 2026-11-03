@@ -95,6 +95,15 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Imágenes pegadas en el texto (v1.17.3)**
+- Las capturas que se pegan (Ctrl+V) o se arrastran al editor quedan **en el texto, donde está el cursor**, en su propio renglón. Antes se agregaban como adjuntos `captura-….png`. Vale para respuestas, notas (también al editarlas), reenvíos, tickets nuevos, y la descripción y los comentarios de las tareas de proyectos.
+- Se guardan como imágenes del mensaje, con los mismos permisos que cualquier adjunto, y no se listan como archivos sueltos. Al tocar una imagen se abre en tamaño completo.
+- **En los correos al usuario** (respuestas y reenvíos) viajan incrustadas en el cuerpo, así el usuario también las ve en su lugar.
+- Las imágenes de más de 1 MB se achican antes de mandarlas (hasta 1920 px de ancho). El máximo por imagen es 3 MB.
+- Lo que se copia de Excel o Word (que trae texto además de una imagen) se sigue pegando como texto. Los archivos que no son imágenes se siguen agregando como adjuntos.
+- Las imágenes que ya estaban adjuntas, como las `captura-….png` de antes, se ven como **miniaturas** en el ticket y en la tarea, en lugar de un nombre de archivo.
+- Sin migración.
+
 **Correos que no entraban como tickets (v1.17.2)**
 - **Adjuntos**: se piden de una forma que funciona con cualquier tipo de adjunto. Antes, un correo con un correo adjunto ("Elemento de Outlook") podía hacer fallar el pedido: el correo se reintentaba cada minuto y nunca llegaba a ser ticket.
 - **Correos adjuntos**: se guardan como archivo `.eml`, que se abre con Outlook desde el ticket.
