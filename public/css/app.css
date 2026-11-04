@@ -1602,3 +1602,29 @@ table.ex-g .na { color: #c0c5cd; }
 .tk-rz-tip { position: fixed; z-index: 70; background: #1f2433; color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 5px; pointer-events: none; }
 body.tk-resizing, body.tk-resizing * { cursor: col-resize !important; user-select: none !important; }
 .tk-num { font-weight: 600; color: var(--link, #2f55d4); text-decoration: none; }
+
+/* ---------- v1.21: combinar tickets — prefijo tkm- ---------- */
+.tkm-picks { display: flex; flex-direction: column; gap: 8px; }
+.tkm-pick { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 12px; align-items: start; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor: pointer; margin: 0; }
+.tkm-pick:hover { border-color: #c9ced8; }
+.tkm-pick:focus-within { outline: 2px solid var(--info); outline-offset: 2px; }
+.tkm-pick.main { border-color: var(--brand); background: var(--brand-soft); }
+.tkm-pick input { margin-top: 3px; accent-color: var(--brand); width: 16px; height: 16px; }
+.tkm-info { min-width: 0; }
+.tkm-t { font-weight: 600; } .tkm-t b { color: var(--link, #2f55d4); }
+.tkm-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin-top: 4px; align-items: center; }
+.tkm-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.tkm-ex { margin-top: 6px; font-size: 12.5px; color: var(--text-2); background: var(--panel-2); border-radius: 6px; padding: 6px 8px; line-height: 1.45; }
+.tkm-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.tkm-tag { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; border-radius: 4px; padding: 2px 7px; white-space: nowrap; background: var(--line-2); color: var(--text-2); }
+.tkm-tag.main { background: var(--brand); color: #fff; }
+.tkm-add { display: flex; gap: 8px; margin-top: 10px; }
+.tkm-add .input { flex: 1; }
+.tkm-sugg { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tkm-chip { border: 1px dashed var(--line); background: none; border-radius: 14px; padding: 3px 10px; cursor: pointer; color: var(--text-2); font-size: 12px; }
+.tkm-chip:hover { border-color: var(--brand); color: var(--brand); }
+.tkm-what { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--panel-2); font-size: 13px; }
+.tkm-what ul { margin: 6px 0 0; padding-left: 18px; line-height: 1.55; color: var(--text-2); }
+.tkm-notify { margin-top: 10px; }
+.tkm-note { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
+.msg-from { font-size: 11px; font-weight: 600; background: var(--line-2); color: var(--text-2); border-radius: 4px; padding: 1px 6px; cursor: help; }

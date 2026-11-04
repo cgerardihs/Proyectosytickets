@@ -95,6 +95,14 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Combinar tickets eligiendo el principal (v1.21.0)**
+- **Desde la lista**: se seleccionan 2 o más tickets → Acciones → **Combinar tickets…**. **Desde un ticket**: Más → **Combinar con otros tickets…**; se agregan otros por número o asunto y sugiere los **otros tickets abiertos del mismo usuario**.
+- Se elige **cuál queda como principal** (de entrada, el más antiguo). Cada ticket muestra usuario, fecha, mensajes, adjuntos, estado, responsable y el comienzo del texto. La ventana resume qué va a pasar y avisa si los tickets son de usuarios distintos.
+- Al combinar, la conversación de los demás pasa al principal en orden de fecha, con cada mensaje marcado **"de #N"**. También pasan adjuntos, horas registradas, vínculos con proyectos, tareas y sistemas críticos, registros de Operación, seguidores, etiquetas y CC. Los demás quedan cerrados como **"Combinado en #N"**, y si el usuario responde un correo viejo, entra al principal.
+- Opcional: avisar por correo a los usuarios de los tickets combinados que se les va a seguir respondiendo en el principal (sale sin marcar).
+- Ahora lo puede hacer **cualquier agente** que vea todos los tickets involucrados (antes, solo supervisores, de a dos y escribiendo el número). Hasta 20 tickets por vez. Queda en el historial de todos.
+- Sin migración.
+
 **Columnas de la lista de tickets (v1.20.0)**
 - Botón **Columnas** en la barra de la lista: se eligen las columnas que se ven (casilla) y su orden (arrastrando, o con las flechas desde el teclado). **Asunto** queda siempre visible. **Restablecer** vuelve a lo de fábrica.
 - Columnas nuevas para elegir: **Número, Empresa, Subcategoría, Tipo, Última actividad, Actualizado, Vence el SLA y Etiquetas**. Las que tienen orden se ordenan tocando el título, como las demás.

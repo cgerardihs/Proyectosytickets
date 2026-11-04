@@ -46,15 +46,16 @@ test('correo entrante: una entidad fuera de Unicode no tira error; un correo que
   assert.equal(await failedTooOften('msg-1'), false, 'y vuelve a empezar');
 });
 
-test('permisos del agente: masivos acotados, combinar y exportar para supervisores; sprints para quien configura', async () => {
+test('permisos del agente: masivos acotados, exportar para supervisores, combinar si ve los tickets (v1.21); sprints para quien configura', async () => {
   const nums = [];
   for (let i = 0; i < 12; i++) nums.push((await admin.post('/tickets', { subject: `Masivo ${i}`, contact_email: 'ana@hanseatica.com' })).data.number);
   let r = await agent.post('/tickets/bulk', { numbers: nums, action: 'trash' });
   assert.equal(r.status, 403, 'más de 10 a la papelera');
   ok(await agent.post('/tickets/bulk', { numbers: nums.slice(0, 3), action: 'spam' }), 'de a pocos sí');
   ok(await supervisor.post('/tickets/bulk', { numbers: nums, action: 'restore' }), 'el supervisor sin tope');
-  assert.equal((await agent.post(`/tickets/${nums[0]}/merge`, { into: nums[1] })).status, 403);
-  ok(await supervisor.post(`/tickets/${nums[0]}/merge`, { into: nums[1] }));
+  // Desde la v1.21 un agente puede combinar los tickets que ve
+  ok(await agent.post(`/tickets/${nums[0]}/merge`, { into: nums[1] }));
+  ok(await supervisor.post(`/tickets/${nums[2]}/merge`, { into: nums[3] }));
   assert.equal((await agent.get('/tickets/export')).status, 403);
   assert.equal((await supervisor.get('/tickets/export')).status, 200);
   ok(await admin.post('/projects', { key: 'SPR', name: 'Con sprints', template: 'scrum', member_ids: [U.agente.id] }));

@@ -5,6 +5,7 @@ import {
 } from '../core.js';
 import { setCrumbs, refreshMeta } from '../app.js';
 import { ticketCriticalHtml, wireTicketCritical } from '../critical.js';
+import { openMergeDialog } from '../ticket-merge.js';
 
 // Estados de las tareas de proyecto (v1.15)
 const TASK_STATE_TEXT = { standby: 'Standby', in_progress: 'En curso', test: 'Test', done: 'Finalizada' };
@@ -274,7 +275,7 @@ export async function render(el, [num]) {
     return `<article class="msg ${m.kind} ${auto ? 'auto' : ''} ${cycle ? 'cycle' : ''}">
       <div class="msg-av">${av}</div>
       <div class="msg-body">
-        <header><b>${esc(who)}</b>${label ? `<span class="msg-kind">${label}</span>` : ''}${auto && m.meta.rule_name ? `<span class="muted small">Regla: ${esc(m.meta.rule_name)}${m.meta.used_ai ? ' · adaptada por IA' : ''}</span>` : ''}${m.meta?.ai_assisted ? '<span class="msg-kind ai">Redactada con IA</span>' : ''}
+        <header><b>${esc(who)}</b>${label ? `<span class="msg-kind">${label}</span>` : ''}${auto && m.meta.rule_name ? `<span class="muted small">Regla: ${esc(m.meta.rule_name)}${m.meta.used_ai ? ' · adaptada por IA' : ''}</span>` : ''}${m.meta?.ai_assisted ? '<span class="msg-kind ai">Redactada con IA</span>' : ''}${m.meta?.from_ticket ? `<span class="msg-from" title="Vino del ticket #${m.meta.from_ticket}, que se combinó en este">de #${m.meta.from_ticket}</span>` : ''}
           ${m.kind === 'forward' && m.to_emails?.length ? `<span class="muted small">a ${esc(m.to_emails.join(', '))}</span>` : ''}
           ${m.meta?.edited_at ? `<span class="muted small msg-edited" title="Editada por ${esc(userName(m.meta.edited_by) || 'un agente')} el ${esc(fmtDateTime(m.meta.edited_at))}">(editada)</span>` : ''}
           <time title="${esc(fmtDateTime(m.created_at))}">${relTime(m.created_at)}</time>
@@ -296,7 +297,7 @@ export async function render(el, [num]) {
         extra = Object.entries(a.details || {}).filter(([k]) => k !== 'group_id').map(([k, v]) => `<li>${esc(FIELD_LABELS[k] || k)}: <s>${esc(fieldValue(k, v.from))}</s> → <b>${esc(fieldValue(k, v.to))}</b></li>`).join('');
       }
       if (a.action === 'merged') extra = `<li>En <a href="#/tickets/${a.details.into}">#${a.details.into}</a></li>`;
-      if (a.action === 'merged_from') extra = `<li>Desde #${a.details.from}</li>`;
+      if (a.action === 'merged_from') extra = `<li>Desde ${[].concat(a.details.from).map((n) => `<a href="#/tickets/${n}">#${n}</a>`).join(', ')}</li>`;
       if (a.action === 'critical_linked' || a.action === 'critical_unlinked') extra = `<li>${esc(a.details.system || '')}${a.details.auto ? ' · automático: el ticket menciona el sistema' : ''}</li>`;
       if (a.action === 'dev_rule') {
         const ev = { convert: 'al convertir', start: 'arrancó el desarrollo', phase: 'cambio de fase', finish: 'terminó el desarrollo', issues_done: 'se finalizaron las tareas vinculadas' };
@@ -558,7 +559,7 @@ export async function render(el, [num]) {
       popover(a, `
         <button class="menu-item" data-value="to-project">${icon('projects', 15)} Convertir en proyecto de desarrollo</button>
         <button class="menu-item" data-value="link-project">${icon('link', 15)} Vincular a un proyecto existente</button>
-        ${isManager() ? `<button class="menu-item" data-value="merge">${icon('merge', 15)} Combinar con otro ticket</button>` : ''}
+        <button class="menu-item" data-value="merge">${icon('merge', 15)} Combinar con otros tickets…</button>
         <button class="menu-item" data-value="print">${icon('note', 15)} Imprimir</button>
         ${t.spam ? `<button class="menu-item" data-value="notspam">${icon('undo', 15)} No es spam</button>` : `<button class="menu-item" data-value="spam">${icon('alert', 15)} Marcar como spam</button>`}
         ${t.deleted_at ? `<button class="menu-item" data-value="restore">${icon('undo', 15)} Restaurar</button>${canPurge() ? `<button class="menu-item danger" data-value="purge">${icon('trash', 15)} Eliminar definitivamente</button>` : ''}`
@@ -568,11 +569,8 @@ export async function render(el, [num]) {
             if (v === 'to-project') return convertToProject();
             if (v === 'link-project') return linkProject();
             if (v === 'merge') {
-              const into = await promptDialog(`Número del ticket principal (se moverá la conversación de #${t.number} a ese ticket)`, { title: 'Combinar tickets' });
-              if (!into) return;
-              const r = await api(`/tickets/${num}/merge`, { method: 'POST', body: { into: into.replace('#', '') } });
-              toast('Tickets combinados');
-              return navigate(`#/tickets/${r.into}`);
+              // v1.21: se elige cuál queda como principal; si este ticket se combina en otro, se va a ese
+              return openMergeDialog([t.number], { onDone: (r) => { if (r.into !== t.number) navigate(`#/tickets/${r.into}`); else load(); } });
             }
             if (v === 'print') return window.print();
             if (v === 'spam' || v === 'notspam') await api(`/tickets/${num}/spam`, { method: 'POST', body: { spam: v === 'spam' } });

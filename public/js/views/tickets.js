@@ -6,6 +6,7 @@ import {
 } from '../core.js';
 import { setCrumbs, refreshMeta } from '../app.js';
 import { attachTicketPreview } from '../ticket-preview.js';
+import { openMergeDialog } from '../ticket-merge.js';
 
 const VIEWS = [
   ['all', 'Todos los tickets'],
@@ -504,6 +505,7 @@ export async function render(el) {
       <button class="menu-item" data-value="tech">${icon('layers', 15)} Cambiar ${esc(fieldLabel('tech').toLowerCase())}…</button>
       <button class="menu-item" data-value="category">${icon('building', 15)} Cambiar ${esc(fieldLabel('category').toLowerCase())}…</button>
       <button class="menu-item" data-value="follow">${icon('eye', 15)} Seguir</button>
+      ${selected.size >= 2 && !trash && !spam ? `<button class="menu-item" data-value="merge">${icon('merge', 15)} Combinar tickets…</button>` : ''}
       ${spam ? `<button class="menu-item" data-value="notspam">${icon('undo', 15)} No es spam</button>` : `<button class="menu-item" data-value="spam">${icon('alert', 15)} Marcar como spam</button>`}
       ${trash ? `<button class="menu-item" data-value="restore">${icon('undo', 15)} Restaurar</button>${canPurge() ? `<button class="menu-item danger" data-value="delete">${icon('trash', 15)} Eliminar definitivamente</button>` : ''}`
     : `<button class="menu-item danger" data-value="trash">${icon('trash', 15)} Enviar a la papelera</button>`}`, {
@@ -517,6 +519,7 @@ export async function render(el) {
             load();
           } catch (er) { toastError(er); }
         };
+        if (v === 'merge') return openMergeDialog(numbers, { onDone: () => { selected.clear(); load(); } });
         const fieldMap = { assign: 'assignee_id', status: 'status_id', priority: 'priority', tech: 'tech_category_id', category: 'category_id' };
         if (fieldMap[v]) {
           return editMenu(btn, fieldMap[v], null, (val) => {
