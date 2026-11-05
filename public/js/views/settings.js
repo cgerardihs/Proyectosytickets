@@ -302,10 +302,11 @@ async function fields(body) {
   <div class="card">
     <h3>${labelTitle('tech')}</h3>
     <p class="hint">Clasifican el tema del ticket. Cada una puede tener subcategorías (un nivel más abajo).</p>
-    <table class="tbl compact edit-tbl" data-table="tech-categories"><thead><tr><th>Nombre</th><th>Subcategorías</th><th title="Los tickets de esta categoría tienen el campo Versión de la solución (ej. Equis)">Pide versión</th><th>Activo</th><th>Orden</th><th></th></tr></thead><tbody>
+    <table class="tbl compact edit-tbl" data-table="tech-categories"><thead><tr><th>Nombre</th><th>Subcategorías</th><th title="Los tickets de esta categoría tienen el campo Versión de la solución (ej. Equis)">Pide versión</th><th title="Cuánto lleva normalmente un ticket de esta categoría. Se usa en Informes → Horas (calculado) cuando el ticket no tiene horas registradas. Vacío = 30 minutos.">Tiempo típico (min)</th><th>Activo</th><th>Orden</th><th></th></tr></thead><tbody>
     ${techs.map((t) => `<tr data-id="${t.id}"><td><input class="input sm" name="name" value="${esc(t.name)}"></td>
       <td><button type="button" class="link-btn" data-subof="${t.id}">${subCount(t.id) ? `${subCount(t.id)} subcategoría${subCount(t.id) > 1 ? 's' : ''}` : 'Agregar'}</button></td>
       <td><input type="checkbox" name="has_version" ${t.has_version ? 'checked' : ''} aria-label="Pide versión de la solución"></td>
+      <td><input class="input sm" type="number" name="std_minutes" min="1" max="2400" value="${t.std_minutes ?? ''}" placeholder="30" style="width:76px" aria-label="Tiempo típico de un ticket, en minutos"></td>
       <td><input type="checkbox" name="active" ${t.active ? 'checked' : ''}></td><td><input class="input sm" type="number" name="sort" value="${t.sort}" style="width:64px"></td>
       <td class="row"><button class="btn sm" data-save>Guardar</button><button class="icon-btn sm" data-del title="Eliminar">${icon('trash', 13)}</button></td></tr>`).join('')}
     </tbody></table><button class="btn sm" data-add="tech-categories">${icon('plus', 13)} Agregar</button>
@@ -426,7 +427,7 @@ function rowValues(tr) {
   tr.querySelectorAll('[name]').forEach((i) => {
     if (i.dataset.list !== undefined) out[i.name] = [...new Set(i.value.split(/[,;]/).map((x) => x.trim()).filter(Boolean))].slice(0, 50);
     else if (i.type === 'checkbox' || i.type === 'radio') out[i.name] = i.checked;
-    else if (i.type === 'number') out[i.name] = Number(i.value);
+    else if (i.type === 'number') out[i.name] = i.value === '' ? null : Number(i.value);
     else out[i.name] = i.value;
   });
   return out;
