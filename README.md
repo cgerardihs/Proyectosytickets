@@ -95,6 +95,11 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Agenda de Operación: cuánto mirar hacia adelante (v1.21.1)**
+- En la Agenda de Operación se elige cuánto mirar hacia adelante: **2 semanas, 30 días, 60 días o 90 días**. De entrada, 30 días (antes eran 2 semanas fijas). Cada agente lo elige y se recuerda.
+- Si no hay nada en ese período, la Agenda ya no dice "No hay tareas con estos filtros": dice hasta qué fecha mira y **cuál es la próxima tarea** (por ejemplo, "La próxima es Capacitaciones Seguridad, el lunes 07/12"), con un botón para mirar 90 días.
+- Sin migración.
+
 **Combinar tickets eligiendo el principal (v1.21.0)**
 - **Desde la lista**: se seleccionan 2 o más tickets → Acciones → **Combinar tickets…**. **Desde un ticket**: Más → **Combinar con otros tickets…**; se agregan otros por número o asunto y sugiere los **otros tickets abiertos del mismo usuario**.
 - Se elige **cuál queda como principal** (de entrada, el más antiguo). Cada ticket muestra usuario, fecha, mensajes, adjuntos, estado, responsable y el comienzo del texto. La ventana resume qué va a pasar y avisa si los tickets son de usuarios distintos.

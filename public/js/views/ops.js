@@ -14,11 +14,13 @@ export const fmtMin = (m) => (m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 6
 const fmtH = (m) => `${(Math.round((m / 60) * 10) / 10).toLocaleString('es-AR')} h`;
 const agents = () => state.meta.users.filter((u) => u.active && u.role !== 'superadmin');
 const MINUTES = [5, 10, 15, 20, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480];
+// v1.21.1: cuánto mira hacia adelante la agenda (cada agente lo elige; se recuerda)
+const HORIZONS = [[14, 'Próximas 2 semanas'], [30, 'Próximos 30 días'], [60, 'Próximos 60 días'], [90, 'Próximos 90 días']];
 
 export async function render(el, _p, query) {
   setCrumbs([{ label: 'Operación' }]);
   const tab = query.tab === 'routines' ? 'routines' : 'agenda';
-  let f = { who: 'all', user: '', category: '' };
+  let f = { who: 'all', user: '', category: '', days: 30 };
   try { f = { ...f, ...JSON.parse(localStorage.getItem(LS) || '{}') }; } catch { /* sin almacenamiento */ }
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(f)); } catch { /* sin almacenamiento */ } };
   el.innerHTML = `<div class="page op-page">
@@ -34,12 +36,13 @@ export async function render(el, _p, query) {
 
   const filtersHtml = (cats) => `<div class="seg op-seg"><button data-who="me" class="${f.who === 'me' ? 'on' : ''}">Mías</button><button data-who="all" class="${f.who === 'all' ? 'on' : ''}">Todo el equipo</button></div>
     ${f.who === 'all' ? `<select class="input sm" data-f="user"><option value="">Todas las personas</option>${agents().map((u) => `<option value="${u.id}" ${String(u.id) === String(f.user) ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>` : ''}
-    <select class="input sm" data-f="category"><option value="">Todas las categorías</option>${cats.map((c) => `<option ${c === f.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>`;
+    <select class="input sm" data-f="category"><option value="">Todas las categorías</option>${cats.map((c) => `<option ${c === f.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+    ${tab === 'agenda' ? `<select class="input sm" data-f="days" aria-label="Cuánto mirar hacia adelante" title="Cuánto mirar hacia adelante en la agenda">${HORIZONS.map(([d, l]) => `<option value="${d}" ${Number(f.days) === d ? 'selected' : ''}>${l}</option>`).join('')}</select>` : ''}`;
 
   async function load() {
     try {
       if (tab === 'agenda') {
-        data = await api(`/ops/agenda${buildQuery({ user: f.who === 'me' ? 'me' : f.user, category: f.category })}`);
+        data = await api(`/ops/agenda${buildQuery({ user: f.who === 'me' ? 'me' : f.user, category: f.category, days: f.days })}`);
         el.querySelector('.op-filters').innerHTML = filtersHtml(data.categories);
         body.innerHTML = agendaHtml(data);
       } else {
@@ -54,6 +57,7 @@ export async function render(el, _p, query) {
   el.addEventListener('click', async (e) => {
     const t = e.target.closest('[data-tab]');
     if (t) return navigate(`#/ops${buildQuery({ tab: t.dataset.tab === 'agenda' ? '' : t.dataset.tab })}`);
+    if (e.target.closest('[data-more-days]')) { f.days = 90; save(); return load(); }
     const w = e.target.closest('[data-who]');
     if (w) { f.who = w.dataset.who; if (f.who === 'me') f.user = ''; save(); return load(); }
     if (e.target.closest('[data-act=new]')) return openRoutine(null, load);
@@ -76,7 +80,7 @@ export async function render(el, _p, query) {
   });
   el.addEventListener('change', (e) => {
     const s = e.target.closest('select[data-f]');
-    if (s) { f[s.dataset.f] = s.value; save(); load(); }
+    if (s) { f[s.dataset.f] = s.dataset.f === 'days' ? Number(s.value) : s.value; save(); load(); }
   });
   await load();
 }
@@ -114,11 +118,13 @@ function agendaHtml(a) {
   const total = weekRows.reduce((s, x) => s + x[1], 0);
   const empty = !a.groups.late.length && !a.groups.today.length && !a.groups.week.length && !a.groups.next.length;
   return `<div class="op-agenda"><div>
-      ${empty ? `<div class="empty">${icon('refresh', 36)}<h4>No hay tareas con estos filtros</h4><p>Cargá las tareas repetitivas del equipo con "Nueva tarea": el backup mensual, los controles diarios, las bajas del mes.</p></div>` : ''}
+      ${empty && a.next_beyond ? `<div class="empty">${icon('refresh', 36)}<h4>No hay tareas hasta el ${dd(a.horizon)}</h4><p>La próxima es <b>${esc(a.next_beyond.name)}</b>, el ${DOWL[D(a.next_beyond.date).getUTCDay()]} ${a.next_beyond.date.slice(8)}/${a.next_beyond.date.slice(5, 7)}${a.next_beyond.assignee_id ? ` (${esc(userName(a.next_beyond.assignee_id) || '')})` : ''}.</p>
+        ${a.days < 90 ? '<p><button class="btn sm" data-more-days>Mirar 90 días</button></p>' : ''}</div>` : ''}
+      ${empty && !a.next_beyond ? `<div class="empty">${icon('refresh', 36)}<h4>No hay tareas con estos filtros</h4><p>Cargá las tareas repetitivas del equipo con "Nueva tarea": el backup mensual, los controles diarios, las bajas del mes.</p></div>` : ''}
       ${group('Vencidas', a.groups.late, 'late')}
       ${group(`Hoy, ${DOWL[D(a.today).getUTCDay()]} ${a.today.slice(8)}/${a.today.slice(5, 7)}`, today, '', { showDate: false })}
       ${group('Lo que queda de la semana', a.groups.week, '', { hideDaily: true })}
-      ${group('Próximas 2 semanas y avisos', a.groups.next, '', { hideDaily: true })}
+      ${group(`${(HORIZONS.find(([d]) => d === a.days) || [0, `Próximos ${a.days} días`])[1].replace('Próximas 2 semanas', 'Las próximas 2 semanas')} (hasta el ${dd(a.horizon)})`, a.groups.next, '', { hideDaily: true })}
     </div>
     <aside class="op-side"><section class="card"><h4>Horas de operación esta semana</h4>
       <div class="op-big">${fmtH(total)}</div><p class="muted small">Lo planificado y, si ya se hizo, lo registrado. Incluye lo vencido.</p>
