@@ -57,7 +57,7 @@ export async function render(el, [key, tabArg]) {
 // ---------- Tarjeta y fila ----------
 /** Tarjeta de una etapa en el tablero: número, nombre, fechas y avance. */
 function phaseCard(e, order = 0, { fixed = false } = {}) {
-  const pct = e.child_count ? Math.round((e.child_done / e.child_count) * 100) : e.status_kind === 'done' ? 100 : Number(e.progress || 0);
+  const pct = e.child_count ? Number(e.child_progress ?? Math.round((e.child_done / e.child_count) * 100)) : e.status_kind === 'done' ? 100 : Number(e.progress || 0);
   const d = (x) => (x ? fmtShortDate(String(x).slice(0, 10)) : '');
   // fixed: en la franja de etapas del tablero (v1.15) no se arrastra y muestra su estado del flujo
   return `<div class="kcard phase-card ${fixed ? 'tsk-phase' : ''}" ${fixed ? '' : 'draggable="true"'} data-id="${e.id}" data-key="${esc(e.key)}">${fixed ? `<div class="tsk-phase-st">${statusPill(e.status_name, e.status_kind)}</div>` : ''}
@@ -289,7 +289,7 @@ async function renderBacklog(body, pj, reload) {
       <aside class="epic-panel">
         <div class="sec-head"><h4>Épicas</h4><button class="icon-btn sm" data-act="new-epic" title="Crear épica">${icon('plus', 14)}</button></div>
         <button class="epic-item ${!f.epic ? 'on' : ''}" data-epic="">Todas las tareas</button>
-        ${pj.epics.map((e) => `<button class="epic-item ${String(e.id) === f.epic ? 'on' : ''}" data-epic="${e.id}"><span class="ellip">${esc(e.title)}</span><small>${esc(e.key)} · ${e.child_done}/${e.child_count}</small><span class="progress thin"><span style="width:${e.child_count ? (e.child_done / e.child_count) * 100 : 0}%"></span></span></button>`).join('')}
+        ${pj.epics.map((e) => `<button class="epic-item ${String(e.id) === f.epic ? 'on' : ''}" data-epic="${e.id}"><span class="ellip">${esc(e.title)}</span><small>${esc(e.key)} · ${e.child_done}/${e.child_count}</small><span class="progress thin"><span style="width:${e.child_count ? Number(e.child_progress ?? (e.child_done / e.child_count) * 100) : 0}%"></span></span></button>`).join('')}
       </aside>
       <div class="bl-main">
         ${filterBar(pj, f, { epics: false })}

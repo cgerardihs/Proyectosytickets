@@ -93,7 +93,7 @@ export async function render(el) {
       <div class="vp-head"><b>Vistas</b><button class="icon-btn sm" data-act="collapse" title="Ocultar vistas">${icon('left', 16)}</button></div>
       <nav class="vp-list">
         ${VIEWS.map(([k, label]) => `<a href="#/tickets?view=${k}" class="${view === k ? 'active' : ''}"><span>${esc(label)}</span><b data-count="${k}"></b></a>`).join('')}
-        <div class="vp-sub"><span>Vistas personalizadas</span><button class="icon-btn sm" data-act="newview" title="Nueva vista">${icon('plus', 14)}</button></div>
+        <div class="vp-sub"><span>Vistas personalizadas</span>${state.meta.views.length ? `<button class="icon-btn sm" data-act="manageviews" title="Administrar vistas: renombrar, actualizar, compartir o eliminar">${icon('settings', 14)}</button>` : ''}<button class="icon-btn sm" data-act="newview" title="Nueva vista">${icon('plus', 14)}</button></div>
         ${state.meta.views.map((v) => `<a href="#/tickets?view=custom:${v.id}" class="${view === `custom:${v.id}` ? 'active' : ''}"><span>${v.shared ? icon('users', 12) + ' ' : ''}${esc(v.name)}</span><b data-count="custom:${v.id}"></b></a>`).join('') || '<p class="muted small" style="padding:4px 12px">Guardá filtros como vista.</p>'}
       </nav>
     </aside>
@@ -466,6 +466,7 @@ export async function render(el) {
     if (act === 'next') setQ({ page: data.page + 1 });
     if (act === 'reload') load({ silent: true });
     if (act === 'columns') return colsPanel(a);
+    if (act === 'manageviews') return manageViews(q, view);
     if (act === 'filters') openFilters(q, setQ);
     if (act === 'clear-filters') setQ(Object.fromEntries([...FILTER_KEYS, 'q'].map((k) => [k, ''])));
     if (act === 'newview') saveView(q);
@@ -591,14 +592,23 @@ function priorityBadgeInline(p) {
 
 function openFilters(q, setQ) {
   const m = state.meta;
-  const multi = (name, list, label, extra = '') => `<label class="field"><span>${esc(label)}</span><select class="input" name="${name}" multiple size="5">${extra}${options(list, (q[name] || '').split(','))}</select></label>`;
+  // v1.23: casillas en lugar de listas con Ctrl+clic; las largas tienen buscador
+  const multi = (name, list, label, extra = '') => {
+    const sel = (q[name] || '').split(',').filter(Boolean);
+    const extraOpts = [...extra.matchAll(/<option value="([^"]*)"[^>]*>([^<]*)<\/option>/g)].map((x) => ({ id: x[1], name: x[2], raw: true }));
+    const all = [...extraOpts, ...list.map((o) => ({ id: String(o.id), name: o.name }))];
+    const n = sel.length;
+    return `<fieldset class="fl-box" data-multi="${name}"><legend>${esc(label)} <small class="fl-count">${n ? `${n} elegido${n === 1 ? '' : 's'}` : ''}</small></legend>
+      ${all.length > 8 ? `<input class="input sm fl-search" type="search" placeholder="Buscar…" aria-label="Buscar en ${esc(label)}">` : ''}
+      <div class="fl-opts">${all.map((o) => `<label class="fl-opt"><input type="checkbox" value="${esc(o.id)}" ${sel.includes(String(o.id)) ? 'checked' : ''}> <span>${o.raw ? o.name : esc(o.name)}</span></label>`).join('')}</div></fieldset>`;
+  };
   const md = modal({
     title: 'Filtrar tickets',
     wide: true,
     body: `<div class="grid3">
       ${multi('status', m.statuses, fieldLabel('status'))}
       ${multi('priority', Object.entries(PRIORITY).map(([id, name]) => ({ id, name })), fieldLabel('priority'))}
-      ${multi('assignee', m.users.filter((u) => u.active), fieldLabel('assignee'), `<option value="me" ${(q.assignee || '').split(',').includes('me') ? 'selected' : ''}>Yo</option><option value="none" ${(q.assignee || '').split(',').includes('none') ? 'selected' : ''}>Sin asignar</option>`)}
+      ${multi('assignee', m.users.filter((u) => u.active), `Agente (${fieldLabel('assignee').toLowerCase()})`, `<option value="me" ${(q.assignee || '').split(',').includes('me') ? 'selected' : ''}>Yo</option><option value="none" ${(q.assignee || '').split(',').includes('none') ? 'selected' : ''}>Sin asignar</option>`)}
       ${multi('category', m.categories, fieldLabel('category'), `<option value="none" ${(q.category || '').split(',').includes('none') ? 'selected' : ''}>— Sin ${esc(fieldLabel('category').toLowerCase())}</option>`)}
       ${multi('tech', m.techCategories, fieldLabel('tech'), `<option value="none" ${(q.tech || '').split(',').includes('none') ? 'selected' : ''}>— Sin ${esc(fieldLabel('tech').toLowerCase())}</option>`)}
       ${(m.techSubcategories || []).length ? multi('subtech', m.techSubcategories.map((x) => ({ id: x.id, name: `${m.techCategories.find((c) => c.id === x.tech_category_id)?.name?.split(' - ')[0] || ''} › ${x.name}` })), fieldLabel('subtech')) : ''}
@@ -610,21 +620,98 @@ function openFilters(q, setQ) {
         <label class="field"><span>Creado hasta</span><input class="input" type="date" name="created_to" value="${esc(q.created_to || '')}"></label>
         <label class="field"><span>Etiqueta</span><input class="input" name="tag" value="${esc(q.tag || '')}"></label>
       </div>
-    </div><p class="hint">Ctrl/Cmd + clic para elegir varios valores.</p>`,
+    </div><p class="hint">Se pueden marcar varios valores en cada filtro.</p>`,
     footer: `<button class="btn" data-clear>Limpiar</button><span class="grow"></span><button class="btn" data-save>Guardar como vista</button><button class="btn primary" data-apply>Aplicar</button>`,
   });
   const collect = () => {
     const out = {};
     for (const k of FILTER_KEYS) {
+      const box = md.el.querySelector(`[data-multi="${k}"]`);
+      if (box) { out[k] = [...box.querySelectorAll('.fl-opts input:checked')].map((i) => i.value).join(','); continue; }
       const f = md.el.querySelector(`[name="${k}"]`);
       if (!f) continue;
-      out[k] = f.multiple ? [...f.selectedOptions].map((o) => o.value).join(',') : f.value;
+      out[k] = f.value;
     }
     return out;
   };
+  md.el.addEventListener('input', (e) => {
+    if (!e.target.matches('.fl-search')) return;
+    const t = e.target.value.trim().toLowerCase();
+    e.target.closest('.fl-box').querySelectorAll('.fl-opt').forEach((o) => { o.hidden = Boolean(t) && !o.textContent.toLowerCase().includes(t); });
+  });
+  md.el.addEventListener('change', (e) => {
+    const box = e.target.closest('.fl-box');
+    if (!box) return;
+    const n = box.querySelectorAll('.fl-opts input:checked').length;
+    box.querySelector('.fl-count').textContent = n ? `${n} elegido${n === 1 ? '' : 's'}` : '';
+  });
   md.el.querySelector('[data-apply]').addEventListener('click', () => { const f = collect(); md.close(); setQ(f); });
   md.el.querySelector('[data-clear]').addEventListener('click', () => { md.close(); setQ(Object.fromEntries(FILTER_KEYS.map((k) => [k, '']))); });
   md.el.querySelector('[data-save]').addEventListener('click', () => { const f = collect(); md.close(); saveView({ ...q, ...f }); });
+}
+
+/** Quién puede cambiar una vista: quien la creó o un administrador. */
+const canEditView = (v) => v.owner_id === state.me.id || ['admin', 'superadmin'].includes(state.me.role);
+const FILTER_NAMES = { status: 'estado', priority: 'prioridad', assignee: 'agente', category: 'área', type: 'tipo', tech: 'categoría técnica', subtech: 'subcategoría', version: 'versión', channel: 'canal', created_from: 'creado desde', created_to: 'creado hasta', tag: 'etiqueta', q: 'texto', view: 'vista de base' };
+const filtersText = (f) => Object.keys(f || {}).filter((k) => f[k]).map((k) => FILTER_NAMES[k] || k).join(', ') || 'sin filtros';
+
+/**
+ * Administrar vistas personalizadas (v1.23): renombrar, compartir, actualizar con los filtros que se están viendo y eliminar.
+ * Las vistas compartidas por otros se ven, pero solo las cambia quien las creó o un administrador.
+ */
+function manageViews(q, current) {
+  const cur = Object.fromEntries(FILTER_KEYS.filter((k) => q[k]).map((k) => [k, q[k]]));
+  if (q.q) cur.q = q.q;
+  if (q.view && !q.view.startsWith('custom:') && q.view !== 'all') cur.view = q.view;
+  const md = modal({
+    title: 'Administrar vistas',
+    wide: true,
+    body: '<div class="vm"></div>',
+    footer: '<span class="grow"></span><button class="btn" data-close>Cerrar</button>',
+  });
+  const root = md.el.querySelector('.vm');
+  const draw = () => {
+    const list = state.meta.views;
+    root.innerHTML = list.length ? `<p class="muted small" style="margin-top:0">Los cambios se guardan con <b>Guardar</b> en cada vista. "Usar los filtros actuales" reemplaza los filtros de la vista por los que tenés aplicados ahora en la lista${Object.keys(cur).length ? ` (${esc(filtersText(cur))})` : ' (ahora no hay ninguno aplicado)'}.</p>
+      <div class="table-wrap"><table class="tbl compact vm-tbl"><thead><tr><th>Nombre</th><th>Compartida</th><th>Filtros</th><th></th></tr></thead><tbody>
+      ${list.map((v) => { const ed = canEditView(v); return `<tr data-v="${v.id}" class="${`custom:${v.id}` === current ? 'vm-current' : ''}">
+        <td>${ed ? `<input class="input sm" name="name" maxlength="80" value="${esc(v.name)}" aria-label="Nombre de la vista">` : `<b>${esc(v.name)}</b><div class="muted small">de ${esc(userName(v.owner_id) || 'otro agente')}</div>`}</td>
+        <td>${ed ? `<label class="check sm"><input type="checkbox" name="shared" ${v.shared ? 'checked' : ''}> Con todo el equipo</label>` : (v.shared ? 'Sí' : 'No')}</td>
+        <td class="small"><span class="muted">${esc(filtersText(v.filters))}</span>${ed && Object.keys(cur).length ? `<div><label class="check sm"><input type="checkbox" name="usecur"> Usar los filtros actuales</label></div>` : ''}</td>
+        <td class="nowrap">${ed ? `<button class="btn sm" data-save>Guardar</button> <button class="icon-btn sm" data-del title="Eliminar la vista">${icon('trash', 14)}</button>` : '<span class="muted small">Solo la cambia quien la creó</span>'}</td></tr>`; }).join('')}
+      </tbody></table></div>` : '<p class="muted">No hay vistas personalizadas. Se crean desde Filtros → Guardar como vista.</p>';
+  };
+  draw();
+  root.addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr[data-v]');
+    if (!tr) return;
+    const v = state.meta.views.find((x) => x.id === Number(tr.dataset.v));
+    if (e.target.closest('[data-save]')) {
+      const name = tr.querySelector('[name=name]').value.trim();
+      if (!name) return toast('La vista necesita un nombre', 'error');
+      const body = { name, shared: tr.querySelector('[name=shared]').checked };
+      if (tr.querySelector('[name=usecur]')?.checked) body.filters = cur;
+      try {
+        const upd = await api(`/views/${v.id}`, { method: 'PATCH', body });
+        Object.assign(v, upd);
+        toast('Vista actualizada');
+        draw();
+        refreshPanel();
+      } catch (er) { toastError(er); }
+    }
+    if (e.target.closest('[data-del]')) {
+      if (!(await confirmDialog(`¿Eliminar la vista "${v.name}"?${v.shared ? ' Está compartida: deja de verse para todo el equipo.' : ''}`, { danger: true, okText: 'Eliminar' }))) return;
+      try {
+        await api(`/views/${v.id}`, { method: 'DELETE' });
+        state.meta.views = state.meta.views.filter((x) => x.id !== v.id);
+        toast('Vista eliminada');
+        draw();
+        if (current === `custom:${v.id}`) { md.close(); navigate('#/tickets?view=all'); } else refreshPanel();
+      } catch (er) { toastError(er); }
+    }
+  });
+  // La lista de la izquierda se vuelve a dibujar al cerrar, con los nombres nuevos
+  function refreshPanel() { window.dispatchEvent(new HashChangeEvent('hashchange')); }
 }
 
 async function saveView(q) {

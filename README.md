@@ -95,6 +95,14 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Avance por tarea, administrar vistas y filtros más claros (v1.23.0)**
+- **Avance de cada tarea**: en el panel de la tarea hay una barra **Avance** (de 0 a 100 %, de a 5). El avance de la etapa y del proyecto es el **promedio del avance de sus tareas** (las finalizadas cuentan 100 %): con 4 tareas, una al 100 % y tres al 0 %, el proyecto va 25 %; si se suma una quinta, se recalcula (20 %). Las subtareas no cuentan como tareas del proyecto. Vale para el Portfolio, el resumen del proyecto, las etapas del tablero y los tickets vinculados.
+- El avance va de la mano del estado: llevar la barra a 100 % deja la tarea **Finalizada** y finalizarla la pone en 100 %; bajar de 100 una finalizada la reabre; una tarea en Standby que empieza a avanzar pasa a En curso. Si se reabre una tarea que estaba al 100 %, vuelve a 0 %.
+- En la lista de tareas de una etapa se ve el % de las que van avanzando, y el resumen dice "1/4 finalizadas · avance 40 %".
+- **Administrar vistas**: botón de engranaje en "Vistas personalizadas". Se puede renombrar, compartir o dejar de compartir, reemplazar los filtros de la vista por los que se están viendo, y eliminar. Las vistas compartidas por otros se ven, pero solo las cambia quien las creó o un administrador.
+- **Filtros**: las listas con Ctrl+clic pasan a ser **casillas**, con buscador en las listas largas y la cantidad elegida al lado del título. El filtro por agente es **"Agente (asignado a)"**.
+- Sin migración.
+
 **Horas calculadas, tiempo de resolución y filtros (v1.22.0)** — Informes → Horas
 - Modo **Calculado** (de entrada) y **Registrado**:
   - **Calculado**: lo que le toca a cada persona aunque no registre horas. **Proyectos**: sus horas estimadas, con el mismo reparto del calendario del Portfolio (parejo entre el inicio y el fin, y en partes iguales entre el responsable y quienes tienen tareas asignadas; los finalizados o cancelados no cargan). **Operación**: lo planificado de las rutinas (si ya se hizo, lo registrado). **Tickets**: cada ticket resuelto en el período suma a quien lo tenía asignado sus horas registradas o, si no tiene, el **tiempo típico de su categoría técnica**.

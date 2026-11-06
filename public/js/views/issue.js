@@ -79,7 +79,7 @@ export const reopenState = (i) => (i.task_state_prev && i.task_state_prev !== 'd
 
 const LINK_KIND = { blocks: ['bloquea a', 'está bloqueada por'], relates: ['se relaciona con', 'se relaciona con'], duplicates: ['duplica a', 'está duplicada por'] };
 const FIELD_LABEL = {
-  status_id: 'Estado', task_state: 'Estado', priority: 'Prioridad', assignee_id: 'Responsable', parent_id: 'Padre', sprint_id: 'Sprint', title: 'Título', type: 'Tipo',
+  status_id: 'Estado', task_state: 'Estado', progress: 'Avance', priority: 'Prioridad', assignee_id: 'Responsable', parent_id: 'Padre', sprint_id: 'Sprint', title: 'Título', type: 'Tipo',
   story_points: 'Puntos', labels: 'Etiquetas', start_date: 'Inicio', due_date: 'Vencimiento', estimate_minutes: 'Estimación',
 };
 
@@ -141,6 +141,8 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
     const canChildren = i.type !== 'subtask';
     const childType = i.type === 'epic' ? 'story' : 'subtask';
     const done = d.children.filter((c) => c.task_state === 'done').length;
+    // v1.23: el % de la etapa es el promedio del avance de sus tareas (las finalizadas cuentan 100)
+    const avgPct = d.children.length ? Math.round(d.children.reduce((t, c) => t + (c.task_state === 'done' ? 100 : Math.min(100, Number(c.progress) || 0)), 0) / d.children.length) : 0;
     const byState = Object.fromEntries(TASK_STATES.map((s) => [s.id, d.children.filter((c) => (c.task_state || 'standby') === s.id).length]));
     const nChildren = d.children.length;
     host.innerHTML = `
@@ -166,11 +168,11 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
     : `<div class="desc ${i.description_html ? '' : 'empty-desc'}" data-act="edit-desc">${i.description_html ? sanitize(i.description_html, { blockRemote: true }) : 'Agregá una descripción…'}</div>`}
         </div>
         ${canChildren ? `<div class="issue-section">
-          <div class="sec-head"><h4>${i.type === 'epic' ? 'Tareas de la épica' : 'Subtareas'} ${nChildren ? `<small class="muted">${done}/${nChildren} finalizadas · ${Math.round((done / nChildren) * 100)} %</small>` : ''}</h4>
+          <div class="sec-head"><h4>${i.type === 'epic' ? 'Tareas de la épica' : 'Subtareas'} ${nChildren ? `<small class="muted">${done}/${nChildren} finalizadas · avance ${avgPct} %</small>` : ''}</h4>
             ${done ? `<label class="check sm tsk-hide"><input type="checkbox" data-hide-done ${hideDone ? 'checked' : ''}> Ocultar finalizadas</label>` : ''}</div>
           ${nChildren ? `<div class="tsk-dist" role="img" aria-label="${TASK_STATES.map((s) => `${s.label}: ${byState[s.id]}`).join(', ')}">${['done', 'test', 'in_progress', 'standby'].map((k) => (byState[k] ? `<span class="tsk-${k}" style="width:${(byState[k] / nChildren) * 100}%"></span>` : '')).join('')}</div>
             <div class="tsk-legend">${TASK_STATES.map((s) => `<span><i class="tsk-dot tsk-${s.id}"></i>${s.label} ${byState[s.id]}</span>`).join('')}</div>` : ''}
-          <ul class="child-list tsk-list">${d.children.filter((c) => !(hideDone && c.task_state === 'done')).map((c) => `<li data-open="${esc(c.key)}" class="${c.task_state === 'done' ? 'tsk-done' : ''}">${taskCheck(c)}${typeIcon(c.type, 14)}<b class="tsk-key">${esc(c.key)}</b><span class="grow ellip tsk-title">${esc(c.title)}</span>${prioIcon(c.priority, 14)}${avatar(c.assignee_id, 20)}${taskStateButton(c)}</li>`).join('')}</ul>
+          <ul class="child-list tsk-list">${d.children.filter((c) => !(hideDone && c.task_state === 'done')).map((c) => `<li data-open="${esc(c.key)}" class="${c.task_state === 'done' ? 'tsk-done' : ''}">${taskCheck(c)}${typeIcon(c.type, 14)}<b class="tsk-key">${esc(c.key)}</b><span class="grow ellip tsk-title">${esc(c.title)}</span>${c.task_state !== 'done' && Number(c.progress) > 0 ? `<span class="tsk-pct" title="Avance de la tarea">${Number(c.progress)} %</span>` : ''}${prioIcon(c.priority, 14)}${avatar(c.assignee_id, 20)}${taskStateButton(c)}</li>`).join('')}</ul>
           ${hideDone && done ? `<p class="muted small">${done === 1 ? 'Hay 1 finalizada oculta' : `Hay ${done} finalizadas ocultas`}.</p>` : ''}
           <form class="quick-add row gap" data-form="child">
             ${i.type === 'epic' ? `<select class="input sm" name="type"><option value="story">Historia</option><option value="task">Tarea</option><option value="bug">Bug</option></select>` : `<input type="hidden" name="type" value="${childType}">`}
@@ -198,7 +200,10 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
       <aside class="issue-side">
         ${i.type === 'epic'
     ? `<label class="field"><span>Estado</span><select class="input status-select st-${esc(i.status_kind)}" data-field="status_id">${options(d.statuses, i.status_id)}</select></label>`
-    : `<label class="field"><span>Estado</span><select class="input status-select tsk-${esc(i.task_state || 'standby')}" data-field="task_state">${TASK_STATES.map((s) => `<option value="${s.id}" ${s.id === (i.task_state || 'standby') ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>`}
+    : `<label class="field"><span>Estado</span><select class="input status-select tsk-${esc(i.task_state || 'standby')}" data-field="task_state">${TASK_STATES.map((s) => `<option value="${s.id}" ${s.id === (i.task_state || 'standby') ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>
+      <div class="field tsk-progress"><span>Avance <b data-prog-label>${i.task_state === 'done' ? 100 : Number(i.progress) || 0} %</b></span>
+        <input type="range" min="0" max="100" step="5" value="${i.task_state === 'done' ? 100 : Number(i.progress) || 0}" data-field="progress" aria-label="Avance de la tarea" style="--p:${i.task_state === 'done' ? 100 : Number(i.progress) || 0}%">
+        <small class="hint">Suma al avance del proyecto. En 100 % la tarea queda Finalizada.</small></div>`}
         <label class="field"><span>Responsable</span><select class="input" data-field="assignee_id"><option value="">— Sin asignar</option>${options(state.meta.users.filter((u) => u.active || u.id === i.assignee_id), i.assignee_id)}</select></label>
         <div class="field"><span>Informante</span><div class="ro">${avatar(i.reporter_id, 20)} ${esc(userName(i.reporter_id) || '—')}</div></div>
         <label class="field"><span>Tipo</span><select class="input" data-field="type">${Object.entries(ISSUE_TYPES).map(([k, v]) => `<option value="${k}" ${k === i.type ? 'selected' : ''}>${v.label}</option>`).join('')}</select></label>
@@ -289,6 +294,7 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
     if (v === null || v === undefined || v === '') return '—';
     if (k === 'status_id') return d.statuses.find((s) => s.id === v)?.name || v;
     if (k === 'task_state') return taskStateLabel(v);
+    if (k === 'progress') return v === null || v === undefined ? '—' : `${v} %`;
     if (k === 'assignee_id') return userName(v);
     if (k === 'priority') return ISSUE_PRIO[v]?.label;
     if (k === 'type') return ISSUE_TYPES[v]?.label;
@@ -312,6 +318,13 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
     } catch (e) { toastError(e); }
   }
 
+  // Mientras se arrastra la barra de avance, se ve el % (se guarda al soltar)
+  host.addEventListener('input', (e) => {
+    if (!e.target.matches('input[type=range][data-field=progress]')) return;
+    e.target.style.setProperty('--p', `${e.target.value}%`);
+    const lbl = host.querySelector('[data-prog-label]');
+    if (lbl) lbl.textContent = `${e.target.value} %`;
+  });
   host.addEventListener('change', async (e) => {
     if (e.target.matches('[data-hide-done]')) {
       hideDone = e.target.checked;
@@ -330,6 +343,12 @@ export async function renderIssueDetail(host, key, { inModal = false, close, onL
       const field = f.dataset.field;
       let v = f.value;
       if (field === 'labels') return patch({ labels: v.split(',').map((x) => x.trim()).filter(Boolean) });
+      if (field === 'progress') {
+        const was = d.issue.task_state;
+        await patch({ progress: Number(v) });
+        if (d.issue.task_state !== was) toast(`${d.issue.key} pasó a ${taskStateLabel(d.issue.task_state)}`);
+        return;
+      }
       if (field === 'task_state') {
         const before = d.issue.task_state;
         await patch({ task_state: v });

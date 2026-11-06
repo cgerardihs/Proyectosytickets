@@ -1632,3 +1632,23 @@ body.tk-resizing, body.tk-resizing * { cursor: col-resize !important; user-selec
 .rh-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: -4px 0 8px; }
 .rh-filters .input { width: auto; max-width: 260px; }
 .rh-how { margin: 0 0 12px; max-width: 120ch; line-height: 1.5; }
+
+/* ---------- v1.23: filtros con casillas — prefijo fl- ---------- */
+.fl-box { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px 8px; margin: 0 0 12px; min-width: 0; }
+.fl-box legend { font-size: 12.5px; font-weight: 600; color: var(--text-2); padding: 0 4px; }
+.fl-count { color: var(--brand); font-weight: 600; margin-left: 4px; }
+.fl-search { width: 100%; margin: 2px 0 6px; }
+.fl-opts { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.fl-opt { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 5px; font-size: 13px; cursor: pointer; margin: 0; }
+.fl-opt:hover { background: var(--panel-2); }
+.fl-opt input { accent-color: var(--brand); flex: none; }
+.fl-opt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- v1.23: avance de las tareas y administrar vistas ---------- */
+.tsk-progress > span b { color: var(--text); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.tsk-progress input[type=range] { width: 100%; accent-color: var(--brand); height: 22px; margin: 2px 0; cursor: pointer; }
+.tsk-progress input[type=range]:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.tsk-pct { font-size: 11px; font-weight: 700; color: var(--info); background: #eff6ff; border-radius: 10px; padding: 1px 7px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.vm-tbl td { vertical-align: middle; }
+.vm-tbl .input { width: 100%; min-width: 180px; }
+.vm-tbl tr.vm-current td { background: var(--brand-soft); }
