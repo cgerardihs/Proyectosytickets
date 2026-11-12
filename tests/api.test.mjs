@@ -196,7 +196,7 @@ test('contactos, empresas y base de conocimiento', async () => {
 });
 
 test('proyectos: issues, sprint, tablero, completar sprint e informes', async () => {
-  let r = await admin.post('/projects', { key: 'crm', name: 'Nuevo CRM', template: 'dev' });
+  let r = await admin.post('/projects', { phase_kind: 'epic', key: 'crm', name: 'Nuevo CRM', template: 'dev' });
   ok(r);
   r = await admin.get('/projects/CRM');
   const st = r.data.statuses;
@@ -289,7 +289,7 @@ test('ticket convertido en proyecto de desarrollo con fases', async () => {
   const me = (await admin.get('/auth/me')).data.user;
   const t = (await admin.post('/tickets', { subject: 'Automatización de cobranzas prelegales en CRM', contact_email: 'igraneros@hanseatica.com', contact_name: 'Ignacio Graneros', body_html: '<p>Necesitamos automatizar las cobranzas prelegales</p>', assignee_id: me.id })).data;
   const stdby = meta.statuses.find((s) => s.name === 'Stdby');
-  let r = await admin.post(`/tickets/${t.number}/project`, {
+  let r = await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic',
     key: 'cob', name: 'Cobranzas prelegales', template: 'scrum', notify_contact: true, ...pfReq(),
     phases: [{ name: 'Análisis', start_date: '2026-10-13', due_date: '2026-10-24' }, { name: 'Desarrollo', start_date: '2026-10-26', due_date: '2026-11-30' }, { name: 'Implementación', start_date: '2026-12-01', due_date: '2026-12-15' }],
   });
@@ -348,14 +348,14 @@ test('ticket convertido en proyecto de desarrollo con fases', async () => {
   assert.ok(r.data.items.some((n) => n.title.includes(`Terminó el desarrollo del ticket #${t.number}`)), 'aviso de fin');
 
   // vincular a otro existente y desvincular
-  r = await admin.post(`/tickets/${t.number}/project`, { project_key: 'DEMO' });
+  r = await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', project_key: 'DEMO' });
   assert.equal(r.data.detail.projects.length, 2);
   const demoId = r.data.detail.projects.find((x) => x.key === 'DEMO').id;
   r = await admin.del(`/tickets/${t.number}/project/${demoId}`);
   assert.equal(r.data.projects.length, 1);
 
   // clave repetida
-  r = await admin.post(`/tickets/${t.number}/project`, { key: 'COB', phases: ['X'] });
+  r = await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'COB', phases: ['X'] });
   assert.equal(r.status, 400);
 });
 
@@ -363,7 +363,7 @@ test('el portal muestra el avance del desarrollo', async () => {
   const pub = makeClient();
   let r = await pub.post('/portal/tickets', { name: 'Marina Mendez', email: 'mmendez@hanseatica.com', subject: 'Pagos en lote ICBC', body_text: 'Desarrollo pagos en lote' });
   const { number, token } = r.data;
-  await admin.post(`/tickets/${number}/project`, { key: 'ICBC', phases: ph('Análisis', 'Desarrollo'), ...pfReq() });
+  await admin.post(`/tickets/${number}/project`, { phase_kind: 'epic', key: 'ICBC', phases: ph('Análisis', 'Desarrollo'), ...pfReq() });
   r = await pub.post('/portal/ticket', { token });
   assert.equal(r.data.development.length, 1);
   assert.deepEqual(r.data.development[0].phases.map((f) => f.title), ['Análisis', 'Desarrollo']);
@@ -379,7 +379,7 @@ test('reglas de negocio ticket ↔ proyecto de desarrollo', async () => {
   ok(r, 'guardar reglas');
   const sla = meta.slas.find((s) => !s.no_sla);
   const t = (await admin.post('/tickets', { subject: 'Nuevo reporte de reaseguros', contact_email: 'fsoto@hanseatica.com', sla_id: sla.id })).data;
-  r = await admin.post(`/tickets/${t.number}/project`, { key: 'REA', phases: ph('Análisis', 'Testing', 'Implementación'), ...pfReq() });
+  r = await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'REA', phases: ph('Análisis', 'Testing', 'Implementación'), ...pfReq() });
   ok(r);
   let tk = r.data.detail.ticket;
   assert.equal(tk.status_id, t.status_id, 'convertir: mantiene');
@@ -410,7 +410,7 @@ test('reglas de negocio ticket ↔ proyecto de desarrollo', async () => {
   // regla al convertir
   await admin.put('/admin/settings/helpdesk', { dev_rules: { on_convert_status_id: st('Stdby').id } });
   const t2 = (await admin.post('/tickets', { subject: 'Otro desarrollo', contact_email: 'fsoto@hanseatica.com' })).data;
-  r = await admin.post(`/tickets/${t2.number}/project`, { key: 'OTRO', phases: ph('Única'), ...pfReq() });
+  r = await admin.post(`/tickets/${t2.number}/project`, { phase_kind: 'epic', key: 'OTRO', phases: ph('Única'), ...pfReq() });
   assert.equal(r.data.detail.ticket.status_id, st('Stdby').id, 'convertir → regla configurada');
   await admin.put('/admin/settings/helpdesk', { dev_rules: {} });
 });

@@ -38,19 +38,19 @@ test('instalación', async () => {
 
 test('convertir sin origen, sin sector o con etapas sin fechas → 400 y no se crea nada', async () => {
   const t = await newTicket('La batería de la notebook no carga');
-  rejects(await admin.post(`/tickets/${t.number}/project`, { key: 'BN', phases, sector_id: O.sector }), /origen/);
-  rejects(await admin.post(`/tickets/${t.number}/project`, { key: 'BN', phases, origin_id: O.origin }), /sector/);
-  rejects(await admin.post(`/tickets/${t.number}/project`, { key: 'BN', origin_id: O.origin, sector_id: O.sector,
-    phases: [{ name: 'Planificación' }, { name: 'Dictado' }, { name: 'Evaluación', due_date: '2026-10-22' }] }), /inicio de la primera etapa \("Planificación"\)/);
-  rejects(await admin.post(`/tickets/${t.number}/project`, { key: 'BN', origin_id: O.origin, sector_id: O.sector,
-    phases: [{ name: 'Planificación', start_date: '2026-10-19' }, { name: 'Dictado', due_date: '2026-10-20' }, { name: 'Evaluación' }] }), /fin de la última etapa \("Evaluación"\)/);
-  rejects(await admin.post(`/tickets/${t.number}/project`, { key: 'BN', origin_id: O.origin, sector_id: O.sector, phases: [{ name: 'Única' }] }), /"Única"/);
+  rejects(await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'BN', phases, sector_id: O.sector }), /origen/);
+  rejects(await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'BN', phases, origin_id: O.origin }), /sector/);
+  rejects(await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'BN', origin_id: O.origin, sector_id: O.sector,
+    phases: [{ name: 'Planificación' }, { name: 'Dictado' }, { name: 'Evaluación', due_date: '2026-10-22' }] }), /inicio de la primera tarea \("Planificación"\)/);
+  rejects(await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'BN', origin_id: O.origin, sector_id: O.sector,
+    phases: [{ name: 'Planificación', start_date: '2026-10-19' }, { name: 'Dictado', due_date: '2026-10-20' }, { name: 'Evaluación' }] }), /fin de la última tarea \("Evaluación"\)/);
+  rejects(await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'BN', origin_id: O.origin, sector_id: O.sector, phases: [{ name: 'Única' }] }), /"Única"/);
   assert.equal((await admin.get('/projects/BN')).status, 404);
 });
 
 test('convertir: fechas del proyecto desde las etapas y horas calculadas', async () => {
   const t = await newTicket('La batería de la notebook no carga');
-  const r = await admin.post(`/tickets/${t.number}/project`, { key: 'BN', name: 'La Batería Notebook', origin_id: O.origin, sector_id: O.sector, phases,
+  const r = await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'BN', name: 'La Batería Notebook', origin_id: O.origin, sector_id: O.sector, phases,
     start_date: '2026-01-01', end_date: '2027-12-31' }); // lo que venga del proyecto no manda: se toman las etapas
   ok(r);
   const p = (await admin.get('/projects/BN')).data.project;
@@ -64,7 +64,7 @@ test('convertir: fechas del proyecto desde las etapas y horas calculadas', async
 
 test('convertir: alcanza con el inicio de la primera etapa y el fin de la última (las del medio se reparten)', async () => {
   const t = await newTicket('La Batería Notebook');
-  ok(await admin.post(`/tickets/${t.number}/project`, { key: 'BAT', origin_id: O.origin, sector_id: O.sector,
+  ok(await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'BAT', origin_id: O.origin, sector_id: O.sector,
     phases: [{ name: 'Planificación', start_date: '2026-10-19' }, { name: 'Dictado' }, { name: 'Evaluación', due_date: '2026-10-27' }] }));
   const pj = (await admin.get('/projects/BAT')).data;
   const d = (x) => (x instanceof Date ? x.toISOString() : String(x)).slice(0, 10);
@@ -76,18 +76,18 @@ test('convertir: alcanza con el inicio de la primera etapa y el fin de la últim
 
 test('convertir: respeta las horas cargadas, las horas por día configuradas y los feriados', async () => {
   const t1 = await newTicket('Otro pedido');
-  ok(await admin.post(`/tickets/${t1.number}/project`, { key: 'BN2', origin_id: O.origin, sector_id: O.sector, phases, estimated_hours: 35 }));
+  ok(await admin.post(`/tickets/${t1.number}/project`, { phase_kind: 'epic', key: 'BN2', origin_id: O.origin, sector_id: O.sector, phases, estimated_hours: 35 }));
   assert.equal(Number((await admin.get('/projects/BN2')).data.project.estimated_hours), 35);
   ok(await admin.put('/admin/settings/helpdesk', { portfolio_day_hours: 4, holidays: ['2026-10-23'] }));
   assert.equal((await admin.get('/meta')).data.helpdesk.portfolio_day_hours, 4, 'llega a la app para calcular en el formulario');
   const t2 = await newTicket('Un pedido más');
-  ok(await admin.post(`/tickets/${t2.number}/project`, { key: 'BN3', origin_id: O.origin, sector_id: O.sector, phases }));
+  ok(await admin.post(`/tickets/${t2.number}/project`, { phase_kind: 'epic', key: 'BN3', origin_id: O.origin, sector_id: O.sector, phases }));
   assert.equal(Number((await admin.get('/projects/BN3')).data.project.estimated_hours), 36, '9 días hábiles × 4 h');
   rejects(await admin.put('/admin/settings/helpdesk', { portfolio_day_hours: 30 }));
 });
 
 test('el alta manual de proyectos no exige origen ni sector', async () => {
-  ok(await admin.post('/projects', { key: 'LIBRE', name: 'Sin datos de portfolio', phases: [{ name: 'Única' }] }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'LIBRE', name: 'Sin datos de portfolio', phases: [{ name: 'Única' }] }));
 });
 
 test('ABM de origen y sector IT', async () => {

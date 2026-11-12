@@ -27,7 +27,7 @@ test('instalación y usuarios', async () => {
 });
 
 test('proyecto: solo líder, admin o con permiso ven y usan la configuración', async () => {
-  const r = await admin.post('/projects', { key: 'DEV', name: 'Desarrollo CRM', template: 'dev', type_id: (await admin.get('/meta')).data.projectTypes[0].id, lead_id: U.lider.id, member_ids: [U.agente.id] });
+  const r = await admin.post('/projects', { phase_kind: 'epic', key: 'DEV', name: 'Desarrollo CRM', template: 'dev', type_id: (await admin.get('/meta')).data.projectTypes[0].id, lead_id: U.lider.id, member_ids: [U.agente.id] });
   ok(r);
   const flag = async (c) => (await c.get('/projects/DEV')).data.can_configure;
   assert.equal(await flag(admin), true);

@@ -19,7 +19,7 @@ test('preparación: proyectos con etapas y tareas, tickets con SLA', async () =>
   let r = await admin.post('/admin/users', { name: 'Matias Ayala', email: 'matias@hanseatica.com', role: 'agent', password: 'Rio-de-la-Plata-9' });
   U.matias = r.data.id ?? r.data.user?.id;
   ok(await agent.post('/auth/login', { email: 'matias@hanseatica.com', password: 'Rio-de-la-Plata-9' }), 'login agente');
-  ok(await admin.post('/projects', { key: 'MC', name: 'Migración de certificados', lead_id: U.matias, start_date: plus(-10), end_date: plus(30), phases: [{ name: 'Análisis', start_date: plus(-10), due_date: plus(2) }, { name: 'Desarrollo', start_date: plus(3), due_date: plus(30) }] }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'MC', name: 'Migración de certificados', lead_id: U.matias, start_date: plus(-10), end_date: plus(30), phases: [{ name: 'Análisis', start_date: plus(-10), due_date: plus(2) }, { name: 'Desarrollo', start_date: plus(3), due_date: plus(30) }] }));
   ok(await admin.post('/projects/MC/issues', { type: 'task', title: 'Firmar PDF', assignee_id: U.matias, start_date: today, due_date: plus(9) }));
   ok(await admin.post('/projects/MC/issues', { type: 'task', title: 'Casos de prueba', assignee_id: U.matias, due_date: plus(1) }));
   ok(await makeClient().post('/portal/tickets', { name: 'Ana Ruiz', email: 'aruiz@hanseatica.com', subject: 'Equis anda lento', body_text: 'Muy lento desde temprano' }), 'ticket');

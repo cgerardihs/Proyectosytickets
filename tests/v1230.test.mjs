@@ -14,7 +14,7 @@ const projectPct = async (key) => (await sup.get('/portfolio')).data.rows.find((
 test('preparación: un proyecto con 4 tareas (sin etapas) y otro con una etapa', async () => {
   ok(await admin.post('/setup', { preset: 'hanseatica', admin: { name: 'Carlos Gerardi', email: 'cgerardi@hanseatica.com', password: 'Sol-de-Mayo-2026' }, demo: false }));
   ok(await sup.post('/auth/login', { email: 'superadmin', password: process.env.SUPERADMIN_PASSWORD }));
-  ok(await admin.post('/projects', { key: 'AV', name: 'Avance', template: 'simple' }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'AV', name: 'Avance', template: 'simple' }));
   for (const t of ['Uno', 'Dos', 'Tres', 'Cuatro']) { const r = await admin.post('/projects/AV/issues', { type: 'task', title: t }); ok(r); keys.push(r.data.key); }
 });
 
@@ -50,7 +50,7 @@ test('estado y avance van juntos: Finalizada = 100 %; si se reabre la que estaba
 });
 
 test('proyecto con etapas: la etapa promedia sus tareas y el proyecto promedia las etapas', async () => {
-  ok(await admin.post('/projects', { key: 'ET', name: 'Con etapas', template: 'dev', phases: [{ name: 'Relevamiento' }, { name: 'Desarrollo' }] }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'ET', name: 'Con etapas', template: 'dev', phases: [{ name: 'Relevamiento' }, { name: 'Desarrollo' }] }));
   const pj = (await admin.get('/projects/ET')).data;
   const ep = pj.epics[0];
   const t1 = await admin.post('/projects/ET/issues', { type: 'task', title: 'A', parent_id: ep.id });

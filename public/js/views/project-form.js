@@ -28,14 +28,14 @@ export function phaseDateIssues(phases, { start = null, end = null } = {}) {
   const errors = [];
   const warnings = [];
   phases.forEach((f, j) => {
-    const name = f.name?.trim() || `Etapa ${j + 1}`;
+    const name = f.name?.trim() || `Tarea ${j + 1}`;
     if (f.start_date && f.due_date && f.due_date < f.start_date) {
       errors.push({ i: j, field: 'due_date', text: `"${name}" termina (${dmy(f.due_date)}) antes de empezar (${dmy(f.start_date)})` });
       return;
     }
     if (f.due_date) {
       const prev = phases.slice(0, j).findIndex((x) => x.start_date && f.due_date < x.start_date);
-      if (prev >= 0) errors.push({ i: j, field: 'due_date', text: `"${name}" termina (${dmy(f.due_date)}) antes de que empiece "${phases[prev].name?.trim() || `Etapa ${prev + 1}`}" (${dmy(phases[prev].start_date)})` });
+      if (prev >= 0) errors.push({ i: j, field: 'due_date', text: `"${name}" termina (${dmy(f.due_date)}) antes de que empiece "${phases[prev].name?.trim() || `Tarea ${prev + 1}`}" (${dmy(phases[prev].start_date)})` });
     }
     if (start && f.start_date && f.start_date < start) warnings.push({ i: j, field: 'start_date', text: `"${name}" empieza antes que el proyecto (${dmy(start)})` });
     if (end && f.due_date && f.due_date > end) warnings.push({ i: j, field: 'due_date', text: `"${name}" termina después que el proyecto (${dmy(end)})` });
@@ -119,8 +119,8 @@ export function phaseEditor(host, initial = [], { range = () => ({}), fallback =
       const missing = [];
       const first = act[0];
       const last = act[act.length - 1];
-      if (!first.start_date) missing.push({ i: 0, field: 'start_date', text: `Falta la fecha de inicio de la primera etapa ("${first.name.trim()}")` });
-      if (!last.due_date) missing.push({ i: act.length - 1, field: 'due_date', text: `Falta la fecha de fin de la última etapa ("${last.name.trim()}")` });
+      if (!first.start_date) missing.push({ i: 0, field: 'start_date', text: `Falta la fecha de inicio de la primera tarea ("${first.name.trim()}")` });
+      if (!last.due_date) missing.push({ i: act.length - 1, field: 'due_date', text: `Falta la fecha de fin de la última tarea ("${last.name.trim()}")` });
       if (missing.length) {
         if (showMissing) errors.unshift(...missing);
         else errors.unshift({ i: -1, hidden: true, text: missing[0].text });
@@ -153,13 +153,13 @@ export function phaseEditor(host, initial = [], { range = () => ({}), fallback =
   const refresh = () => { autofill(); validate(); };
   const draw = () => {
     host.innerHTML = `${phases.map((f, i) => `<div class="phase-row ${f.on ? '' : 'off'}" data-i="${i}">
-      <label class="ph-check" title="Incluir esta etapa"><input type="checkbox" data-p="on" ${f.on ? 'checked' : ''}><span class="ph-num">${i + 1}</span></label>
-      <input class="input sm grow" data-p="name" value="${esc(f.name)}" placeholder="Nombre de la etapa" ${f.on ? '' : 'disabled'}>
-      <input class="input sm" type="date" data-p="start_date" value="${esc(f.start_date || '')}" aria-label="Inicio de la etapa ${i + 1}" ${f.on ? '' : 'disabled'}>
-      <input class="input sm" type="date" data-p="due_date" value="${esc(f.due_date || '')}" aria-label="Fin de la etapa ${i + 1}" ${f.on ? '' : 'disabled'}>
+      <label class="ph-check" title="Incluir esta tarea"><input type="checkbox" data-p="on" ${f.on ? 'checked' : ''}><span class="ph-num">${i + 1}</span></label>
+      <input class="input sm grow" data-p="name" value="${esc(f.name)}" placeholder="Nombre de la tarea" ${f.on ? '' : 'disabled'}>
+      <input class="input sm" type="date" data-p="start_date" value="${esc(f.start_date || '')}" aria-label="Inicio de la tarea ${i + 1}" ${f.on ? '' : 'disabled'}>
+      <input class="input sm" type="date" data-p="due_date" value="${esc(f.due_date || '')}" aria-label="Fin de la tarea ${i + 1}" ${f.on ? '' : 'disabled'}>
       <button type="button" class="icon-btn sm" data-up ${i === 0 ? 'disabled' : ''} aria-label="Subir">${icon('up', 13)}</button>
       <button type="button" class="icon-btn sm" data-rm aria-label="Quitar">${icon('x', 13)}</button></div>`).join('')
-      || '<p class="muted small">Sin etapas. Agregá al menos una.</p>'}<div class="phase-msg" aria-live="polite"></div>`;
+      || '<p class="muted small">Sin tareas. Agregá al menos una.</p>'}<div class="phase-msg" aria-live="polite"></div>`;
     refresh();
   };
   const onEdit = (e) => {
@@ -213,8 +213,8 @@ export function portfolioFieldsHtml(p = {}, { required = false, derived = false 
     <label class="field"><span>Prioridad</span><select class="input" name="priority">${[1, 2, 3, 4].map((n) => `<option value="${n}" ${Number(p.priority || 2) === n ? 'selected' : ''}>${PRIORITY[n]}</option>`).join('')}</select></label>
     <label class="field"><span>Estado</span><select class="input" name="portfolio_status">${Object.entries(PSTATUS).map(([k, v]) => `<option value="${k}" ${(p.portfolio_status || 'active') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="field"><span>Horas estimadas</span><input class="input" type="number" min="0" step="any" name="estimated_hours" value="${p.estimated_hours ?? ''}"><small class="hint" data-hours-hint></small></label>
-    <label class="field"><span>Fecha de inicio</span><input class="input" type="date" name="start_date" value="${d(p.start_date)}" ${derived ? 'readonly tabindex="-1"' : ''}>${derived ? '<small class="hint">Primer inicio de las etapas</small>' : ''}</label>
-    <label class="field"><span>Fecha de fin</span><input class="input" type="date" name="end_date" value="${d(p.end_date)}" ${derived ? 'readonly tabindex="-1"' : ''}>${derived ? '<small class="hint">Último fin de las etapas</small>' : ''}</label>
+    <label class="field"><span>Fecha de inicio</span><input class="input" type="date" name="start_date" value="${d(p.start_date)}" ${derived ? 'readonly tabindex="-1"' : ''}>${derived ? '<small class="hint">Primer inicio de las tareas</small>' : ''}</label>
+    <label class="field"><span>Fecha de fin</span><input class="input" type="date" name="end_date" value="${d(p.end_date)}" ${derived ? 'readonly tabindex="-1"' : ''}>${derived ? '<small class="hint">Último fin de las tareas</small>' : ''}</label>
     <label class="check" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="recurring" ${p.recurring ? 'checked' : ''}> Recurrente (sin fin)</label>
   </div>`;
 }
@@ -243,7 +243,7 @@ export function openProjectForm({ ticket = null, ruleText = '', canConfigure = f
       title: ticket ? `Convertir el ticket #${ticket.number} en proyecto` : 'Crear proyecto',
       wide: true,
       onClose: () => resolve(null),
-      body: `${ticket ? '<p class="muted small" style="margin-bottom:12px">Se crea el proyecto con una épica por etapa, se copia la descripción del pedido y el ticket queda vinculado mostrando el avance.</p>' : ''}
+      body: `${ticket ? '<p class="muted small" style="margin-bottom:12px">Se crea el proyecto con sus tareas iniciales en Standby, se copia la descripción del pedido y el ticket queda vinculado mostrando el avance.</p>' : ''}
       <div class="type-pick">${types.map((t) => `<button type="button" class="type-opt ${t.id === type?.id ? 'on' : ''}" data-type="${t.id}" style="--c:${esc(t.color)}">
         <b>${esc(t.name)}</b><small>${esc(t.description || (t.phases || []).join(' → '))}</small></button>`).join('')}</div>
       <div class="grid3">
@@ -256,9 +256,9 @@ export function openProjectForm({ ticket = null, ruleText = '', canConfigure = f
         <label class="field"><span>Flujo de las tareas</span><select class="input" name="template">${Object.entries(WORKFLOW_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
         <label class="field"><span>Color</span><input class="input" type="color" name="color" value="${esc(type?.color || '#C41230')}"></label>
       </div>
-      <div class="field"><span>${ticket ? 'Etapas * <small class="muted">— obligatorias: el <b>inicio de la primera etapa</b> y el <b>fin de la última</b>. Las fechas del medio se reparten solas (en gris; las podés cambiar) y las del proyecto y las horas se calculan solas.</small>' : 'Etapas <small class="muted">— destildá las que no apliquen. Con el inicio de la primera etapa y el fin de la última, las del medio se reparten solas (en gris; las podés cambiar) y el proyecto toma esas fechas.</small>'}</span>
+      <div class="field"><span>${ticket ? 'Tareas iniciales * <small class="muted">— se crean como tareas en <b>Standby</b>, para moverlas después por el tablero. Obligatorias: el <b>inicio de la primera tarea</b> y el <b>fin de la última</b>. Las fechas del medio se reparten solas (en gris; las podés cambiar) y las del proyecto y las horas se calculan solas.</small>' : 'Tareas iniciales <small class="muted">— se crean como tareas en <b>Standby</b>, para moverlas después por el tablero. Destildá las que no apliquen. Con el inicio de la primera tarea y el fin de la última, las del medio se reparten solas (en gris; las podés cambiar) y el proyecto toma esas fechas.</small>'}</span>
         <div class="phase-editor"></div>
-        <button type="button" class="btn sm" data-addphase>${icon('plus', 13)} Agregar etapa</button>
+        <button type="button" class="btn sm" data-addphase>${icon('plus', 13)} Agregar tarea</button>
       </div>
       <details class="pf-more" ${state.meta.canPortfolio || ticket ? 'open' : ''}><summary>Datos para el portfolio${ticket ? ' <small class="muted">(origen y sector IT obligatorios)</small>' : ''}</summary>${portfolioFieldsHtml({ area_id: ticket?.category_id || null, priority: ticket ? Math.max(2, Number(ticket.priority) || 2) : 2 }, { required: Boolean(ticket), derived: Boolean(ticket) })}</details>
       <label class="field"><span>Equipo <small class="muted">— el responsable se suma solo</small></span><select class="input" name="members" multiple size="4">${options(users, [ticket?.assignee_id].filter(Boolean))}</select></label>
@@ -327,7 +327,7 @@ export function openProjectForm({ ticket = null, ruleText = '', canConfigure = f
     md.el.querySelector('[data-ok]').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
       const phases = ed.value();
-      if (!phases.length) return toast('Definí al menos una etapa', 'error');
+      if (!phases.length) return toast('Definí al menos una tarea', 'error');
       if (!f('name').value.trim()) return toast('El nombre es obligatorio', 'error');
       const pf = readPortfolioFields(md.el);
       if (!datesOk()) {
@@ -338,7 +338,7 @@ export function openProjectForm({ ticket = null, ruleText = '', canConfigure = f
       const errs = ed.validate({ strict: true });
       if (errs.length) {
         md.el.querySelector('.phase-row input.invalid')?.focus();
-        return toast(`Revisá las fechas de las etapas: ${errs[0].text}`, 'error');
+        return toast(`Revisá las fechas de las tareas: ${errs[0].text}`, 'error');
       }
       if (conversion) {
         const miss = ['origin_id', 'sector_id'].filter((n) => !f(n).value);

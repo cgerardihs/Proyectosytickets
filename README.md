@@ -95,6 +95,13 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Proyectos nuevos con tareas en lugar de etapas (v1.24.0)**
+- Al crear un proyecto o convertir un ticket en proyecto (de cualquier tipo), lo que antes eran **etapas** ahora son **tareas iniciales**: cada renglón se crea como **tarea en Standby**, asignada al responsable, con sus fechas, para moverla después por el tablero (Standby, En curso, Test y Finalizada). Las reglas de fechas son las mismas: el inicio de la primera y el fin de la última; las del medio se reparten solas.
+- El **Roadmap** del proyecto y del Portfolio dibujan esas tareas con sus fechas, y el avance del proyecto es el promedio del avance de sus tareas.
+- **Ciclo con el ticket**: el proyecto queda "en curso" en cuanto alguna tarea avanza, y la "etapa actual" es la tarea en curso más adelantada, así las reglas de etapa (por ejemplo, "Testing") se aplican cuando una tarea con ese nombre entra en curso.
+- Los proyectos que ya existían siguen con sus etapas. Por la API se pueden seguir pidiendo etapas con `phase_kind: "epic"`.
+- Sin migración.
+
 **Avance por tarea, administrar vistas y filtros más claros (v1.23.0)**
 - **Avance de cada tarea**: en el panel de la tarea hay una barra **Avance** (de 0 a 100 %, de a 5). El avance de la etapa y del proyecto es el **promedio del avance de sus tareas** (las finalizadas cuentan 100 %): con 4 tareas, una al 100 % y tres al 0 %, el proyecto va 25 %; si se suma una quinta, se recalcula (20 %). Las subtareas no cuentan como tareas del proyecto. Vale para el Portfolio, el resumen del proyecto, las etapas del tablero y los tickets vinculados.
 - El avance va de la mano del estado: llevar la barra a 100 % deja la tarea **Finalizada** y finalizarla la pone en 100 %; bajar de 100 una finalizada la reabre; una tarea en Standby que empieza a avanzar pasa a En curso. Si se reabre una tarea que estaba al 100 %, vuelve a 0 %.

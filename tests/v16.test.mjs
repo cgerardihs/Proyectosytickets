@@ -36,7 +36,7 @@ test('instalación y permisos del portfolio', async () => {
 
 test('tipos de proyecto: etapas y flujo según el tipo', async () => {
   const inst = meta.projectTypes.find((t) => t.name.startsWith('Instalación'));
-  let r = await admin.post('/projects', { key: 'ERP', name: 'Instalación ERP', type_id: inst.id, start_date: '2026-10-01', end_date: '2026-12-30' });
+  let r = await admin.post('/projects', { phase_kind: 'epic', key: 'ERP', name: 'Instalación ERP', type_id: inst.id, start_date: '2026-10-01', end_date: '2026-12-30' });
   ok(r);
   r = await admin.get('/projects/ERP');
   assert.equal(r.data.type.name, 'Instalación de sistema');
@@ -45,16 +45,16 @@ test('tipos de proyecto: etapas y flujo según el tipo', async () => {
   assert.equal(String(r.data.epics[0].start_date).slice(0, 10), '2026-10-01', 'las fechas del proyecto se reparten entre las etapas');
   assert.equal(String(r.data.epics[2].due_date).slice(0, 10), '2026-12-30');
   // Etapas elegidas a mano (se destildó una y se agregó otra)
-  r = await admin.post('/projects', { key: 'CAP', name: 'Capacitación Copilot', type_id: meta.projectTypes.find((t) => t.name === 'Capacitación').id, phases: [{ name: 'Planificación' }, { name: 'Dictado' }, { name: 'Encuesta' }] });
+  r = await admin.post('/projects', { phase_kind: 'epic', key: 'CAP', name: 'Capacitación Copilot', type_id: meta.projectTypes.find((t) => t.name === 'Capacitación').id, phases: [{ name: 'Planificación' }, { name: 'Dictado' }, { name: 'Encuesta' }] });
   ok(r);
   assert.deepEqual((await admin.get('/projects/CAP')).data.epics.map((e) => e.title), ['Planificación', 'Dictado', 'Encuesta']);
   // Sin tipo ni etapas: el proyecto arranca vacío (compatibilidad)
-  ok(await admin.post('/projects', { key: 'VACIO', name: 'Sin etapas' }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'VACIO', name: 'Sin etapas' }));
   assert.equal((await admin.get('/projects/VACIO')).data.epics.length, 0);
   // Validaciones
-  assert.equal((await admin.post('/projects', { key: 'X1', name: 'x', type_id: 9999 })).status, 400);
-  assert.equal((await admin.post('/projects', { key: 'X2', name: 'x', start_date: '2026-10-10', end_date: '2026-10-01' })).status, 400);
-  assert.equal((await admin.post('/projects', { key: 'X3', name: 'x', origin_id: meta.sectors[0].id })).status, 400, 'un sector no sirve como origen');
+  assert.equal((await admin.post('/projects', { phase_kind: 'epic', key: 'X1', name: 'x', type_id: 9999 })).status, 400);
+  assert.equal((await admin.post('/projects', { phase_kind: 'epic', key: 'X2', name: 'x', start_date: '2026-10-10', end_date: '2026-10-01' })).status, 400);
+  assert.equal((await admin.post('/projects', { phase_kind: 'epic', key: 'X3', name: 'x', origin_id: meta.sectors[0].id })).status, 400, 'un sector no sirve como origen');
 });
 
 test('tipos de proyecto: administración', async () => {
@@ -74,7 +74,7 @@ test('convertir un ticket en proyecto con tipo y datos del portfolio', async () 
   const t = (await admin.post('/tickets', { subject: 'Implementar firma digital', contact_email: 'legales@hanseatica.com', priority: 3, category_id: meta.categories[0].id })).data;
   const inst = meta.projectTypes.find((x) => x.name.startsWith('Instalación'));
   const origin = meta.origins[0];
-  const r = await admin.post(`/tickets/${t.number}/project`, { key: 'FIRMA', type_id: inst.id, origin_id: origin.id, sector_id: meta.sectors[0].id, estimated_hours: 120, portfolio_status: 'planned',
+  const r = await admin.post(`/tickets/${t.number}/project`, { phase_kind: 'epic', key: 'FIRMA', type_id: inst.id, origin_id: origin.id, sector_id: meta.sectors[0].id, estimated_hours: 120, portfolio_status: 'planned',
     phases: [{ name: 'Análisis', start_date: '2026-11-02', due_date: '2026-11-13' }, { name: 'Instalación', start_date: '2026-11-16', due_date: '2026-12-04' }, { name: 'Implementación', start_date: '2026-12-07', due_date: '2026-12-15' }] });
   ok(r);
   const p = (await admin.get('/projects/FIRMA')).data;
@@ -368,8 +368,8 @@ test('revisión: archivo Excel malicioso no traba el servidor', async () => {
 });
 
 test('revisión: referencias inválidas → 400, CSV sin fórmulas y sincronización incremental', async () => {
-  assert.equal((await admin.post('/projects', { key: 'MEM', name: 'x', member_ids: [99999] })).status, 400);
-  assert.equal((await admin.post('/projects', { key: 'MEM2', name: 'x', phases: [{ name: 'A', assignee_id: 99999 }] })).status, 400);
+  assert.equal((await admin.post('/projects', { phase_kind: 'epic', key: 'MEM', name: 'x', member_ids: [99999] })).status, 400);
+  assert.equal((await admin.post('/projects', { phase_kind: 'epic', key: 'MEM2', name: 'x', phases: [{ name: 'A', assignee_id: 99999 }] })).status, 400);
   const { toCsv } = await import('../lib/xlsx.js');
   const csv = toCsv([["-1+1+cmd|' /C calc'!A0", '-12.5', '=SUMA(1)']]);
   assert.ok(csv.includes("'-1+1+cmd"), 'se neutraliza');

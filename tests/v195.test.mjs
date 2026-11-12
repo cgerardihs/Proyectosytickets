@@ -19,14 +19,14 @@ test('instalación', async () => {
 });
 
 test('un proyecto Kanban nuevo tiene Pendiente, En curso y Hecho', async () => {
-  ok(await admin.post('/projects', { key: 'KAN', name: 'Kanban nuevo', template: 'kanban', type_id: meta.projectTypes[0].id }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'KAN', name: 'Kanban nuevo', template: 'kanban', type_id: meta.projectTypes[0].id }));
   const pj = (await admin.get('/projects/KAN')).data;
   assert.deepEqual(pj.statuses.map((s) => [s.name, s.kind]), [['Pendiente', 'todo'], ['En curso', 'doing'], ['Hecho', 'done']]);
 });
 
 test('migración 14: los Kanban de cuatro estados pasan a tres y lo "Seleccionado" vuelve a Pendiente', async () => {
-  ok(await admin.post('/projects', { key: 'VIEJO', name: 'Kanban viejo', template: 'kanban' }));
-  ok(await admin.post('/projects', { key: 'TOCADO', name: 'Kanban personalizado', template: 'kanban' }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'VIEJO', name: 'Kanban viejo', template: 'kanban' }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'TOCADO', name: 'Kanban personalizado', template: 'kanban' }));
   const ids = {};
   for (const k of ['VIEJO', 'TOCADO']) {
     ids[k] = (await one('select id from projects where key=$1', [k])).id;
@@ -52,7 +52,7 @@ test('migración 14: los Kanban de cuatro estados pasan a tres y lo "Seleccionad
 });
 
 test('tablero: las etapas vienen con su avance', async () => {
-  ok(await admin.post('/projects', { key: 'CAPA', name: 'Capacitación', type_id: meta.projectTypes.find((x) => x.name === 'Capacitación').id }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'CAPA', name: 'Capacitación', type_id: meta.projectTypes.find((x) => x.name === 'Capacitación').id }));
   const pj = (await admin.get('/projects/CAPA')).data;
   ok(await admin.patch(`/issues/${pj.epics[0].key}`, { progress: 40 }));
   const phases = (await admin.get('/projects/CAPA/issues?type=epic')).data;

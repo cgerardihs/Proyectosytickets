@@ -28,13 +28,13 @@ test('reglas de las etapas', () => {
 
 test('crear proyecto: fechas de etapas cruzadas → 400 y no se crea nada', async () => {
   const phases = [{ name: 'Relevamiento y análisis', start_date: '2026-10-26' }, { name: 'Desarrollo' }, { name: 'Testing' }, { name: 'Implementación', due_date: '2026-10-16' }];
-  rejects(await admin.post('/projects', { key: 'BCC', name: 'BOT correo cobranzas', type_id: typeId, phases }), /Implementación/);
+  rejects(await admin.post('/projects', { phase_kind: 'epic', key: 'BCC', name: 'BOT correo cobranzas', type_id: typeId, phases }), /Implementación/);
   assert.equal((await admin.get('/projects/BCC')).status, 404);
-  rejects(await admin.post('/projects', { key: 'BCC', name: 'x', type_id: typeId, phases: [{ name: 'A', start_date: '2026-11-10', due_date: '2026-11-01' }] }), /termina/);
-  rejects(await admin.post('/projects', { key: 'BCC', name: 'x', type_id: typeId, start_date: '2026-11-10', end_date: '2026-11-01' }), /anterior al inicio/);
+  rejects(await admin.post('/projects', { phase_kind: 'epic', key: 'BCC', name: 'x', type_id: typeId, phases: [{ name: 'A', start_date: '2026-11-10', due_date: '2026-11-01' }] }), /termina/);
+  rejects(await admin.post('/projects', { phase_kind: 'epic', key: 'BCC', name: 'x', type_id: typeId, start_date: '2026-11-10', end_date: '2026-11-01' }), /anterior al inicio/);
   // Fin del proyecto anterior al inicio cargado a mano en la primera etapa
-  rejects(await admin.post('/projects', { key: 'BCC', name: 'x', type_id: typeId, end_date: '2026-10-20', phases: [{ name: 'A', start_date: '2026-11-01' }, { name: 'B' }] }), /fechas de inicio y fin del proyecto/);
-  ok(await admin.post('/projects', { key: 'BCC', name: 'BOT correo cobranzas', type_id: typeId, start_date: '2026-10-26', end_date: '2026-12-18', phases: [{ name: 'Relevamiento' }, { name: 'Desarrollo' }, { name: 'Implementación' }] }));
+  rejects(await admin.post('/projects', { phase_kind: 'epic', key: 'BCC', name: 'x', type_id: typeId, end_date: '2026-10-20', phases: [{ name: 'A', start_date: '2026-11-01' }, { name: 'B' }] }), /fechas de inicio y fin del proyecto/);
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'BCC', name: 'BOT correo cobranzas', type_id: typeId, start_date: '2026-10-26', end_date: '2026-12-18', phases: [{ name: 'Relevamiento' }, { name: 'Desarrollo' }, { name: 'Implementación' }] }));
 });
 
 test('tareas y etapas: el vencimiento no puede ser anterior al inicio', async () => {

@@ -15,7 +15,7 @@ let epic;
 
 test('preparación: proyecto de desarrollo con una etapa y cuatro tareas', async () => {
   ok(await admin.post('/setup', { preset: 'hanseatica', admin: { name: 'Carlos Gerardi', email: 'cgerardi@hanseatica.com', password: 'Sol-de-Mayo-2026' }, demo: false }));
-  ok(await admin.post('/projects', { key: 'SPMC', name: 'Sistema para el manejo de Comisiones', template: 'dev', phases: [{ name: 'Relevamiento y análisis' }] }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'SPMC', name: 'Sistema para el manejo de Comisiones', template: 'dev', phases: [{ name: 'Relevamiento y análisis' }] }));
   const pj = (await admin.get('/projects/SPMC')).data;
   assert.deepEqual(pj.statuses.map((s) => s.name), ['Backlog', 'Análisis', 'Desarrollo', 'Testing', 'Producción']);
   epic = pj.epics[0];
@@ -113,7 +113,7 @@ test('con todas las tareas Finalizadas el proyecto pasa solo a Finalizado, y vue
 });
 
 test('en un flujo sin estado de pruebas, Test usa el estado en curso y se conserva', async () => {
-  ok(await admin.post('/projects', { key: 'SIMP', name: 'Flujo simple', template: 'simple' }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'SIMP', name: 'Flujo simple', template: 'simple' }));
   const r = await admin.post('/projects/SIMP/issues', { type: 'task', title: 'Probar algo' });
   ok(r);
   ok(await admin.patch(`/issues/${r.data.key}`, { task_state: 'test' }));

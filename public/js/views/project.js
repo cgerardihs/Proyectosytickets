@@ -499,7 +499,12 @@ async function renderList(body, pj, reload) {
 async function renderRoadmap(body, pj, reload) {
   const pf = pj.portfolio || { phases: [], progress: 0 };
   const byId = Object.fromEntries((pf.phases || []).map((f) => [f.id, f]));
-  const epics = pj.epics.map((e) => ({ ...e, pct: byId[e.id]?.pct ?? 0, state: byId[e.id]?.state || 'pending', progress: byId[e.id]?.progress ?? null }));
+  // v1.24: un proyecto sin etapas (los nuevos) se planifica con sus tareas: el Roadmap muestra las tareas con fechas
+  const byTasks = !pj.epics.length && (pf.phases || []).some((f) => f.is_task);
+  const epics = byTasks
+    ? pf.phases.map((f) => ({ ...f, child_count: 0 }))
+    : pj.epics.map((e) => ({ ...e, pct: byId[e.id]?.pct ?? 0, state: byId[e.id]?.state || 'pending', progress: byId[e.id]?.progress ?? null }));
+  const W = byTasks ? { one: 'tarea', One: 'Tarea', many: 'Tareas', icon: 'task' } : { one: 'etapa', One: 'Etapa', many: 'Etapas', icon: 'epic' };
   const canEdit = pj.can_configure || isManager() || pj.project.lead_id === state.me.id || state.meta.canPortfolio;
   const dated = epics.filter((e) => e.start_date || e.due_date);
   const today = new Date();
@@ -523,35 +528,35 @@ async function renderRoadmap(body, pj, reload) {
   body.innerHTML = `<div class="proj-summary card">
       <div><span>Tipo</span><b>${esc(pj.type?.name || 'Sin tipo')}</b></div>
       <div><span>Estado</span><b>${esc(pf.status_label || '—')}</b></div>
-      <div><span>Avance</span><b>${pf.progress ?? 0}%</b><small class="muted">${pf.progress_source === 'manual' ? 'cargado a mano' : 'por etapas'}</small></div>
+      <div><span>Avance</span><b>${pf.progress ?? 0}%</b><small class="muted">${pf.progress_source === 'manual' ? 'cargado a mano' : byTasks ? 'por tareas' : 'por etapas'}</small></div>
       <div><span>Fechas</span><b>${pf.recurring && !pf.end ? 'Recurrente' : pf.start || pf.end ? `${pf.start ? fmtDate(pf.start) : '—'} → ${pf.end ? fmtDate(pf.end) : '—'}` : 'Sin definir'}</b></div>
       <div><span>Horas</span><b>${fmtNum(pf.hours || 0, 1)}${pf.estimated_hours !== null && pf.estimated_hours !== undefined ? ` / ${fmtNum(pf.estimated_hours)}` : ''}</b><small class="muted">registradas / estimadas</small></div>
       <div><span>Salud</span><b style="color:${(HEALTH[pf.health] || HEALTH.none)[1]}">${(HEALTH[pf.health] || HEALTH.none)[0]}</b></div>
       ${canEdit ? '<a class="btn sm" href="#" data-goto-settings>Editar datos</a>' : ''}
     </div>
     <div class="roadmap">
-    <div class="rm-head"><div class="rm-label">Etapa</div><div class="rm-track">${months.map((m) => `<span style="left:${pos(m)}%">${m.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' })}</span>`).join('')}<i class="today" style="left:${pos(today)}%"></i></div></div>
+    <div class="rm-head"><div class="rm-label">${W.One}</div><div class="rm-track">${months.map((m) => `<span style="left:${pos(m)}%">${m.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' })}</span>`).join('')}<i class="today" style="left:${pos(today)}%"></i></div></div>
     ${epics.map((e) => {
     const has = e.start_date || e.due_date;
     const st = has ? toD(e.start_date || e.due_date) : null;
     const en = has ? toD(e.due_date || e.start_date) : null;
     return `<div class="rm-row" data-key="${esc(e.key)}">
-        <div class="rm-label">${typeIcon('epic', 14)} <span class="ellip">${esc(e.title)}</span><small class="muted">${e.pct}%</small></div>
+        <div class="rm-label">${typeIcon(W.icon, 14)} <span class="ellip">${esc(e.title)}</span><small class="muted">${e.pct}%</small></div>
         <div class="rm-track">${has ? `<div class="rm-bar ${e.state === 'done' ? 'done' : ''}" style="left:${pos(st)}%;width:${Math.max(1.5, pos(en) - pos(st))}%" title="${esc(fmtDate(e.start_date))} → ${esc(fmtDate(e.due_date))}"><span style="width:${e.pct}%"></span></div>` : '<span class="muted small rm-nodate">Sin fechas</span>'}<i class="today" style="left:${pos(today)}%"></i></div>
       </div>`;
-  }).join('') || emptyState('Sin etapas', 'Agregá las etapas del proyecto para planificarlo.', 'calendar')}
+  }).join('') || emptyState(`Sin ${W.many.toLowerCase()}`, `Agregá las ${W.many.toLowerCase()} del proyecto con sus fechas para planificarlo.`, 'calendar')}
     </div>
     <section class="card phases-card">
-      <div class="sec-head"><h3>Etapas</h3>${canEdit ? `<button class="btn sm" data-addphase>${icon('plus', 13)} Agregar etapa</button>` : ''}</div>
-      <p class="hint">El avance de una etapa sale de sus tareas hechas. Si la etapa no tiene tareas (por ejemplo, el dictado de una capacitación), cargá el estado y el porcentaje acá.</p>
-      <div class="table-wrap"><table class="tbl compact"><thead><tr><th></th><th>Etapa</th><th>Inicio</th><th>Fin</th><th>Responsable</th><th>Estado</th><th>Avance</th><th></th></tr></thead><tbody>
+      <div class="sec-head"><h3>${W.many}</h3>${canEdit ? `<button class="btn sm" data-addphase>${icon('plus', 13)} Agregar ${W.one}</button>` : ''}</div>
+      <p class="hint">${byTasks ? 'El avance del proyecto es el promedio del avance de sus tareas. El estado y el % de cada tarea se pueden cambiar acá o en la tarea.' : 'El avance de una etapa sale de sus tareas hechas. Si la etapa no tiene tareas (por ejemplo, el dictado de una capacitación), cargá el estado y el porcentaje acá.'}</p>
+      <div class="table-wrap"><table class="tbl compact"><thead><tr><th></th><th>${W.One}</th><th>Inicio</th><th>Fin</th><th>Responsable</th><th>Estado</th><th>Avance</th><th></th></tr></thead><tbody>
       ${epics.map((e, i) => `<tr data-ph="${esc(e.key)}" data-id="${e.id}">
         <td class="nowrap">${canEdit ? `<button class="icon-btn xs" data-phup ${i === 0 ? 'disabled' : ''} aria-label="Subir">${icon('up', 12)}</button>` : ''}</td>
         <td><input class="input sm" name="title" value="${esc(e.title)}" ${canEdit ? '' : 'disabled'}></td>
         <td><input class="input sm" type="date" name="start_date" value="${d10(e.start_date)}" ${canEdit ? '' : 'disabled'}></td>
         <td><input class="input sm" type="date" name="due_date" value="${d10(e.due_date)}" ${canEdit ? '' : 'disabled'}></td>
         <td><select class="input sm" name="assignee_id" ${canEdit ? '' : 'disabled'}>${options(state.meta.users.filter((u) => u.active || u.id === e.assignee_id), e.assignee_id, { empty: '—' })}</select></td>
-        <td><select class="input sm" name="state" ${canEdit ? '' : 'disabled'}>${Object.entries({ pending: 'Pendiente', active: 'En curso', done: 'Hecha' }).map(([k, v]) => `<option value="${k}" ${e.state === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+        <td><select class="input sm" name="state" ${canEdit ? '' : 'disabled'}>${Object.entries(byTasks ? { pending: 'Standby', active: 'En curso', done: 'Finalizada' } : { pending: 'Pendiente', active: 'En curso', done: 'Hecha' }).map(([k, v]) => `<option value="${k}" ${e.state === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
         <td class="nowrap">${e.child_count ? `<span title="Tareas hechas">${e.child_done}/${e.child_count} tareas · <b>${e.pct}%</b></span>` : `<input class="input sm inline-num" type="number" min="0" max="100" name="progress" value="${e.progress ?? e.pct}" ${canEdit ? '' : 'disabled'}> %`}</td>
         <td>${canEdit ? '<button class="btn sm" data-phsave>Guardar</button>' : ''}</td></tr>`).join('')}
       </tbody></table></div>
@@ -578,9 +583,9 @@ async function renderRoadmap(body, pj, reload) {
   if (phRows.length) checkPhases();
   body.querySelector('[data-goto-settings]')?.addEventListener('click', (e) => { e.preventDefault(); navigate(`#/projects/${pj.project.key}/settings`); });
   body.querySelector('[data-addphase]')?.addEventListener('click', async () => {
-    const title = await promptDialog('Nombre de la etapa', { title: 'Nueva etapa' });
+    const title = await promptDialog(`Nombre de la ${W.one}`, { title: `Nueva ${W.one}` });
     if (!title) return;
-    try { await api(`/projects/${encodeURIComponent(pj.project.key)}/issues`, { method: 'POST', body: { type: 'epic', title } }); toast('Etapa agregada'); reload(); } catch (er) { toastError(er); }
+    try { await api(`/projects/${encodeURIComponent(pj.project.key)}/issues`, { method: 'POST', body: byTasks ? { type: 'task', title, task_state: 'standby' } : { type: 'epic', title } }); toast(`${W.One} agregada`); reload(); } catch (er) { toastError(er); }
   });
   body.querySelector('.phases-card').addEventListener('click', async (e) => {
     const tr = e.target.closest('tr[data-ph]');
@@ -614,7 +619,7 @@ async function renderRoadmap(body, pj, reload) {
         patch.progress = pr;
       }
       await api(`/issues/${encodeURIComponent(tr.dataset.ph)}`, { method: 'PATCH', body: patch });
-      toast('Etapa guardada');
+      toast(`${W.One} guardada`);
       reload();
     } catch (er) { toastError(er); }
   });

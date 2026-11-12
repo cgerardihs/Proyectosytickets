@@ -23,28 +23,28 @@ test('preparación', async () => {
 });
 
 test('quien carga el proyecto para otro no queda en el equipo', async () => {
-  ok(await admin.post('/projects', { key: 'MRE', name: 'Modificar reporte equis', lead_id: U.martin }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'MRE', name: 'Modificar reporte equis', lead_id: U.martin }));
   const p = await proj('MRE');
   assert.equal(p.lead_id, U.martin);
   assert.deepEqual(p.member_ids, [U.martin]);
   // Sin responsable elegido, el que lo carga es el responsable (y está en el equipo)
-  ok(await admin.post('/projects', { key: 'PROPIO', name: 'Proyecto propio' }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'PROPIO', name: 'Proyecto propio' }));
   const own = await proj('PROPIO');
   assert.equal(own.lead_id, U.me);
   assert.ok(own.member_ids.includes(U.me));
   // El equipo elegido se respeta
-  ok(await admin.post('/projects', { key: 'EQ', name: 'Con equipo', lead_id: U.martin, member_ids: [U.matias] }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'EQ', name: 'Con equipo', lead_id: U.martin, member_ids: [U.matias] }));
   assert.deepEqual((await proj('EQ')).member_ids.sort(), [U.matias, U.martin].sort());
 });
 
 test('al cambiar el responsable, el anterior sale del equipo salvo que tenga tareas abiertas', async () => {
-  ok(await admin.post('/projects', { key: 'MC', name: 'Migración de certificados', lead_id: U.matias }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'MC', name: 'Migración de certificados', lead_id: U.matias }));
   ok(await admin.patch('/projects/MC', { lead_id: U.martin }));
   let p = await proj('MC');
   assert.equal(p.lead_id, U.martin);
   assert.deepEqual(p.member_ids, [U.martin], 'Matías ya no figura');
   // Con una tarea abierta asignada, el anterior sigue en el equipo
-  ok(await admin.post('/projects', { key: 'TAR', name: 'Con tareas', lead_id: U.matias }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'TAR', name: 'Con tareas', lead_id: U.matias }));
   ok(await admin.post('/projects/TAR/issues', { type: 'task', title: 'Revisar certificados', assignee_id: U.matias }));
   ok(await admin.patch('/projects/TAR', { lead_id: U.martin }));
   p = await proj('TAR');
@@ -53,7 +53,7 @@ test('al cambiar el responsable, el anterior sale del equipo salvo que tenga tar
 });
 
 test('v1.13.6: el avance de la lista es el del portfolio (etapas, finalizado = 100 %)', async () => {
-  ok(await admin.post('/projects', { key: 'NPDS', name: 'Nuevo proyecto desarrollo de software', lead_id: U.martin, phases: [{ name: 'Análisis' }, { name: 'Desarrollo' }] }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'NPDS', name: 'Nuevo proyecto desarrollo de software', lead_id: U.martin, phases: [{ name: 'Análisis' }, { name: 'Desarrollo' }] }));
   let p = await proj('NPDS');
   assert.equal(p.total_issues, 0, 'solo etapas, sin tareas sueltas');
   assert.equal(p.progress, 0);
@@ -71,7 +71,7 @@ test('v1.13.6: el avance de la lista es el del portfolio (etapas, finalizado = 1
 });
 
 test('v1.13.7: con todas las tareas hechas el proyecto pasa solo a Finalizado (y vuelve a En curso si se reabre)', async () => {
-  ok(await admin.post('/projects', { key: 'AUTO', name: 'Se finaliza solo', lead_id: U.martin }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'AUTO', name: 'Se finaliza solo', lead_id: U.martin }));
   const t1 = (await admin.post('/projects/AUTO/issues', { type: 'task', title: 'Uno' })).data;
   const t2 = (await admin.post('/projects/AUTO/issues', { type: 'task', title: 'Dos' })).data;
   const sts = (await admin.get('/projects/AUTO')).data.statuses;
@@ -98,7 +98,7 @@ test('v1.13.7: con todas las tareas hechas el proyecto pasa solo a Finalizado (y
   ok(await admin.post('/projects/AUTO/issues', { type: 'task', title: 'Cuatro' }));
   assert.equal((await proj('AUTO')).portfolio_status, 'done');
   // Un proyecto sin tareas no se finaliza solo
-  ok(await admin.post('/projects', { key: 'VAC', name: 'Vacío', lead_id: U.martin }));
+  ok(await admin.post('/projects', { phase_kind: 'epic', key: 'VAC', name: 'Vacío', lead_id: U.martin }));
   assert.equal((await proj('VAC')).portfolio_status, 'active');
 });
 
