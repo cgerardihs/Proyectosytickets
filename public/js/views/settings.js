@@ -1032,7 +1032,7 @@ async function mailTemplatesSettings(body) {
             </div>
             <textarea class="input" name="body" rows="7" maxlength="4000">${esc(cur[key].body || '')}</textarea></div>
           <div class="mail-vars">${varsHtml(key)}</div>
-          <div class="row gap wrap"><button type="button" class="btn sm" data-reset>Volver al texto de fábrica</button><button type="button" class="btn sm" data-test ${data.mail ? '' : 'disabled'}>${icon('mail', 13)} Enviarme una prueba</button></div>
+          <div class="row gap wrap"><button type="button" class="btn sm" data-reset>Volver al texto de fábrica</button><button type="button" class="btn sm" data-test ${data.mail ? '' : 'disabled'}>${icon('mail', 13)} Enviar una prueba</button></div>
         </div>
         <div class="mail-prev" aria-label="Vista previa">${mailPreview(key, cur[key], cur, sample)}</div>
       </div>
@@ -1088,9 +1088,17 @@ async function mailTemplatesSettings(body) {
     }
     if (e.target.closest('[data-test]') && card) {
       const k = card.dataset.key;
+      // v1.24.1: se elige a qué correo mandar la prueba (se recuerda el último)
+      let last = '';
+      try { last = localStorage.getItem('mail-test-to') || ''; } catch { /* sin almacenamiento */ }
+      const mine = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.me.email || '') ? state.me.email : '';
+      const to = await promptDialog('Correo al que se manda la prueba', { title: 'Enviar una prueba', value: last || mine, placeholder: 'nombre@hanseatica.com', okText: 'Enviar' });
+      if (to === null || to === undefined) return;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) return toast('Escribí un correo válido', 'error');
+      try { localStorage.setItem('mail-test-to', to.trim()); } catch { /* sin almacenamiento */ }
       try {
-        const r = await api('/admin/mail-templates/test', { method: 'POST', body: { key: k, subject: k === 'auto_reply' ? cur.created.subject : cur[k].subject || '', body: cur[k].body || '', button: cur.button, footer: cur.footer } });
-        toast(`Te mandamos una prueba a ${r.to}`);
+        const r = await api('/admin/mail-templates/test', { method: 'POST', body: { key: k, to: to.trim(), subject: k === 'auto_reply' ? cur.created.subject : cur[k].subject || '', body: cur[k].body || '', button: cur.button, footer: cur.footer } });
+        toast(`Mandamos la prueba a ${r.to}`);
       } catch (er) { toastError(er); }
     }
     if (e.target.closest('[data-save-mails]')) {

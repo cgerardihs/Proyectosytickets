@@ -95,6 +95,11 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Prueba de los correos a los usuarios (v1.24.1)**
+- En Configuración → Correos a los usuarios, el botón **Enviar una prueba** abre una ventana para escribir **a qué correo** mandarla. Viene completada con el último correo usado o con el del usuario, si es válido. Antes la prueba iba siempre al correo del usuario, y con el superadministrador (que no tiene un correo real) fallaba con un error en inglés.
+- Si el servicio de correo rechaza el envío, el error se muestra en castellano (destino inválido, buzón no encontrado, falta de permiso o demasiados envíos).
+- Sin migración.
+
 **Proyectos nuevos con tareas en lugar de etapas (v1.24.0)**
 - Al crear un proyecto o convertir un ticket en proyecto (de cualquier tipo), lo que antes eran **etapas** ahora son **tareas iniciales**: cada renglón se crea como **tarea en Standby**, asignada al responsable, con sus fechas, para moverla después por el tablero (Standby, En curso, Test y Finalizada). Las reglas de fechas son las mismas: el inicio de la primera y el fin de la última; las del medio se reparten solas.
 - El **Roadmap** del proyecto y del Portfolio dibujan esas tareas con sus fechas, y el avance del proyecto es el promedio del avance de sus tareas.
