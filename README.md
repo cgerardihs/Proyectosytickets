@@ -95,6 +95,14 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Comparativa de tickets (v1.25.0)** — Informes → Comparativa
+- Pestaña nueva para ver cómo evolucionan los tickets: agrupados por **mes, trimestre o año**, en los últimos 12 meses, un año en particular o desde el comienzo, y con la opción de **comparar con el año anterior**.
+- Arriba: **ingresados**, **cerrados** (resueltos o cerrados en el período), la **diferencia** entre los dos, los **abiertos al cierre** del período y el **tiempo de resolución** promedio en horas laborales, con su variación contra el período anterior (o el año anterior).
+- Gráfico con ingresados y cerrados por período, la línea de abiertos al cierre y, si se compara, los ingresados del año anterior.
+- **Detalle**: una tabla por **agente, área solicitante, usuario, categoría técnica, canal, tipo o prioridad**, contando ingresados, cerrados, abiertos al cierre o tiempo de resolución; con total, tendencia y variación del último período. Por usuario se muestran los 10 con más tickets y el resto junto. Tocando una celda de ingresados se abre la lista de esos tickets.
+- Filtros por agente, área y categoría técnica (se recuerdan) y descarga a Excel (CSV) de la tabla tal como se ve.
+- No cuentan spam, papelera ni los tickets combinados en otro. Sin migración.
+
 **Prueba de los correos a los usuarios (v1.24.1)**
 - En Configuración → Correos a los usuarios, el botón **Enviar una prueba** abre una ventana para escribir **a qué correo** mandarla. Viene completada con el último correo usado o con el del usuario, si es válido. Antes la prueba iba siempre al correo del usuario, y con el superadministrador (que no tiene un correo real) fallaba con un error en inglés.
 - Si el servicio de correo rechaza el envío, el error se muestra en castellano (destino inválido, buzón no encontrado, falta de permiso o demasiados envíos).
