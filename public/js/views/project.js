@@ -2,7 +2,7 @@ import {
   state, api, esc, icon, avatar, toast, toastError, modal, navigate, options, fmtDate, fmtShortDate, emptyState, userName, debounce,
   confirmDialog, isManager, isAdmin, fmtNum, promptDialog, guardDates,
 } from '../core.js';
-import { PSTATUS, portfolioFieldsHtml, readPortfolioFields, phaseDateIssues } from './project-form.js';
+import { PSTATUS, portfolioFieldsHtml, readPortfolioFields, phaseDateIssues, wireContactSuggest } from './project-form.js';
 import { setCrumbs, refreshMeta } from '../app.js';
 import { sortable } from '../dnd.js';
 import {
@@ -708,7 +708,8 @@ async function renderSettings(body, pj, reload) {
       <h3>Portfolio</h3>
       <form data-form="portfolio">
         <div class="grid3"><label class="field"><span>Tipo de proyecto</span><select class="input" name="type_id" ${canPf ? '' : 'disabled'}>${options((state.meta.projectTypes || []).filter((t) => t.active || t.id === p.type_id), p.type_id, { empty: '—' })}</select></label></div>
-        <fieldset ${canPf ? '' : 'disabled'} class="plain">${portfolioFieldsHtml(p)}
+        <fieldset ${canPf ? '' : 'disabled'} class="plain">${portfolioFieldsHtml({ ...p, contact_email: pj.contact?.email || '' })}
+        ${pj.contact ? `<p class="small muted" style="margin:-4px 0 10px">Contacto actual: <b>${esc(pj.contact.name || pj.contact.email)}</b>. El resumen sale solo, una vez por día, si hubo tareas finalizadas. ${canPf ? '<button type="button" class="link-btn" data-digest-now>Mandar ahora lo pendiente</button>' : ''}</p>` : ''}
         <div class="grid3">
           <div class="field"><span>Avance</span>
             <label class="check"><input type="radio" name="pmode" value="auto" ${p.progress_override === null || p.progress_override === undefined ? 'checked' : ''}> Automático (${pj.portfolio?.progress_auto ?? 0}%)</label>
@@ -752,6 +753,13 @@ async function renderSettings(body, pj, reload) {
     if (down) { const i = Number(down.dataset.down); [statuses[i + 1], statuses[i]] = [statuses[i], statuses[i + 1]]; }
     if (rm) statuses.splice(Number(rm.dataset.rm), 1);
     if (up || down || rm) wf.innerHTML = drawStatuses();
+  });
+  wireContactSuggest(body);
+  body.querySelector('[data-digest-now]')?.addEventListener('click', async () => {
+    try {
+      const r = await api(`/projects/${encodeURIComponent(p.key)}/digest`, { method: 'POST' });
+      toast(r.tasks ? `Se mandó el resumen con ${r.tasks} tarea${r.tasks === 1 ? '' : 's'}` : 'No había tareas finalizadas pendientes de avisar');
+    } catch (er) { toastError(er); }
   });
   body.addEventListener('submit', async (e) => {
     e.preventDefault();

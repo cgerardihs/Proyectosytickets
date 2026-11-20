@@ -19,6 +19,7 @@ const PCOLDEFS = {
   logged: { label: 'Horas registradas', w: 130, num: true, nueva: true }, current: { label: 'Etapa o tarea actual', w: 200, nueva: true },
   members: { label: 'Integrantes', w: 110, num: true, nueva: true }, tasks: { label: 'Tareas', w: 90, num: true, nueva: true },
   sprint: { label: 'Sprint activo', w: 150, nueva: true }, created: { label: 'Creado', w: 110, nueva: true },
+  contact: { label: 'Contacto del área', w: 180, nueva: true },
 };
 const PDEFAULT_ON = ['name', 'type', 'status', 'lead', 'priority', 'open', 'progress', 'end'];
 const HEALTH = { late: ['Atrasado', '#dc2626'], risk: ['En riesgo', '#d97706'], ok: ['En término', '#059669'], done: ['Finalizado', '#059669'], none: ['Sin fechas', '#9ca3af'] };
@@ -108,6 +109,8 @@ export async function render(el, _p, query) {
       <span class="grow"></span>
       <label class="mini-field"><span>Ordenar</span><select class="input sm" data-pf="sort">${kv(SORTS, ui.sort)}</select></label>
       <div class="seg" data-views><a href="#" data-view="cards" class="${ui.view === 'cards' ? 'on' : ''}">${icon('board', 14)} Tarjetas</a><a href="#" data-view="table" class="${ui.view === 'table' ? 'on' : ''}">${icon('list', 14)} Lista</a></div>
+      <button type="button" class="btn sm" data-act="xls" title="Bajar a Excel los proyectos que se ven, con las columnas de la lista">${icon('download', 14)} Excel</button>
+      <button type="button" class="btn sm" data-act="pdf" title="Versión para imprimir o guardar como PDF">${icon('print', 14)} PDF</button>
       <span class="tkc-wrap" data-colwrap ${ui.view === 'table' ? '' : 'hidden'}><button type="button" class="btn sm" data-act="pcols" aria-expanded="false" title="Elegir columnas de la lista">${icon('columns', 15)} Columnas</button></span>
     </div>
     <div class="pf-bar pf-filters">
@@ -178,6 +181,7 @@ export async function render(el, _p, query) {
     tasks: (p) => `<td class="num">${p.total_issues}</td>`,
     sprint: (p) => `<td class="small">${esc(p.active_sprint || '—')}</td>`,
     created: (p) => `<td class="small nowrap">${p.created_at ? fmtDate(String(p.created_at).slice(0, 10)) : '—'}</td>`,
+    contact: (p) => `<td class="small"><span class="ellip" title="${esc(p.contact_name || '')}">${esc(p.contact_name || '—')}</span></td>`,
   };
   const row = (p) => `<tr class="clickable" data-href="#/projects/${esc(p.key)}/${typeOf(p.type_id)?.uses_sprints === false ? 'roadmap' : 'board'}">${visible().map((k) => cellOf[k](p)).join('')}</tr>`;
   const headHtml = () => `<colgroup>${visible().map((k) => `<col data-k="${k}" ${Object.keys(cols.w).length ? `style="width:${cols.w[k] || PCOLDEFS[k].w}px"` : ''}>`).join('')}</colgroup>
@@ -330,6 +334,60 @@ export async function render(el, _p, query) {
     saveCols();
   };
 
+  // ---------- Exportar la vista (v1.28): los proyectos que se ven, con las columnas y el orden de la Lista ----------
+  const shownRows = () => sorted(filtered());
+  function exportExcel() {
+    const rows = shownRows();
+    if (!rows.length) return toast('No hay proyectos para exportar con estos filtros', 'error');
+    const qs = new URLSearchParams({ keys: rows.map((p) => p.key).join(','), cols: visible().join(',') });
+    const a = document.createElement('a');
+    a.href = `/api/projects/export.xlsx?${qs}`;
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  /** Texto de una celda tal como se ve (sin etiquetas), para la versión imprimible. */
+  const cellText = (k, p) => { const div = document.createElement('div'); div.innerHTML = cellOf[k](p).replace(/^<td[^>]*>|<\/td>$/g, ''); div.querySelectorAll('.avatar, .av, [class*="avatar"]').forEach((x) => x.remove()); return div.textContent.replace(/\s+/g, ' ').trim(); };
+  const filtersText = () => {
+    const out = [];
+    const nm = (arr, id) => (arr || []).find((x) => String(x.id) === String(id))?.name;
+    if (ui.q) out.push(`texto "${ui.q}"`);
+    if (ui.type) out.push(`tipo: ${nm(m.projectTypes, ui.type) || 'sin tipo'}`);
+    if (ui.status) out.push(`estado: ${PSTATUS[ui.status] || ui.status}`);
+    if (ui.person) out.push(`persona: ${ui.person === 'me' ? 'yo' : userName(Number(ui.person))} ${ROLES[ui.role] || ''}`.trim());
+    if (ui.priority) out.push(`prioridad: ${PRIORITY[ui.priority] || ui.priority}`);
+    if (ui.origin) out.push(`origen: ${nm(m.origins, ui.origin) || 'sin origen'}`);
+    if (ui.sector) out.push(`sector IT: ${nm(m.sectors, ui.sector) || 'sin sector'}`);
+    if (ui.area) out.push(`área: ${nm(m.categories, ui.area) || 'sin área'}`);
+    if (ui.when) out.push(WHEN[ui.when] || ui.when);
+    if (ui.sprint) out.push('con sprint activo');
+    if (ui.archived) out.push('incluye archivados');
+    return out.length ? out.join(' · ') : 'sin filtros';
+  };
+  function exportPdf() {
+    const rows = shownRows();
+    if (!rows.length) return toast('No hay proyectos para exportar con estos filtros', 'error');
+    const cols = visible();
+    const w = window.open('', '_blank');
+    if (!w) return toast('El navegador bloqueó la ventana: permití las ventanas emergentes para este sitio', 'error');
+    const now = new Date();
+    const when = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} hs`;
+    const brand = state.meta.brand?.name || 'Hanseatica';
+    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Proyectos - ${esc(brand)}</title>
+      <style>@page { size: A4 landscape; margin: 12mm; } body { font-family: Montserrat, "Segoe UI", Arial, sans-serif; color: #141821; font-size: 10px; margin: 0; }
+      h1 { font-size: 16px; margin: 0 0 2px; } .sub { color: #6b7280; margin: 0 0 10px; font-size: 10px; }
+      table { width: 100%; border-collapse: collapse; } th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; border-bottom: 1.5px solid #141821; padding: 5px 6px; }
+      td { padding: 5px 6px; border-bottom: 1px solid #e4e7ec; vertical-align: top; } tr { page-break-inside: avoid; } .key { font-weight: 700; color: #C8102E; }
+      .foot { margin-top: 8px; color: #6b7280; font-size: 9px; }</style></head><body>
+      <h1>Proyectos</h1><p class="sub">${esc(brand)} · ${esc(when)} · ${rows.length} proyecto(s) · ${esc(filtersText())}</p>
+      <table><thead><tr><th>Clave</th>${cols.map((k) => `<th>${esc(PCOLDEFS[k].label)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((p) => `<tr><td class="key">${esc(p.key)}</td>${cols.map((k) => `<td>${esc(k === 'name' ? p.name : cellText(k, p))}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      <p class="foot">Para guardarlo como PDF, elegí "Guardar como PDF" en el destino de la impresión.</p>
+      <script>window.onload = () => setTimeout(() => window.print(), 300);<\/script></body></html>`);
+    w.document.close();
+  }
+
   el.onclick = (e) => {
     const t = e.target;
     if (t.closest('[data-act=new]')) { openNewProject(); return; }
@@ -338,6 +396,8 @@ export async function render(el, _p, query) {
     const v = t.closest('[data-view]');
     if (v) { e.preventDefault(); ui.view = v.dataset.view; el.querySelectorAll('[data-view]').forEach((a) => a.classList.toggle('on', a === v)); el.querySelector('[data-colwrap]').hidden = ui.view !== 'table'; draw(); return; }
     if (t.closest('[data-act=pcols]')) { colsPanel(t.closest('[data-act=pcols]')); return; }
+    if (t.closest('[data-act=xls]')) { exportExcel(); return; }
+    if (t.closest('[data-act=pdf]')) { exportPdf(); return; }
     if (t.closest('[data-rz], .tkc-panel')) return;
     const tr = t.closest('tr[data-href]');
     if (tr) navigate(tr.dataset.href);

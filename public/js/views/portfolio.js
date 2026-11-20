@@ -3,7 +3,7 @@ import {
   state, api, esc, icon, avatar, toast, toastError, modal, fmtDate, fmtNum, PRIORITY, PRIORITY_COLOR, downloadUrl, options, debounce, emptyState, isAdmin,
 } from '../core.js';
 import { setCrumbs, refreshMeta } from '../app.js';
-import { PSTATUS, PSTATUS_COLOR, portfolioFieldsHtml, readPortfolioFields, openProjectForm } from './project-form.js';
+import { PSTATUS, PSTATUS_COLOR, portfolioFieldsHtml, readPortfolioFields, openProjectForm, wireContactSuggest } from './project-form.js';
 import { calendarHtml, addMonths } from './portfolio-calendar.js';
 
 const HEALTH = {

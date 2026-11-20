@@ -969,6 +969,7 @@ const MAIL_CARDS = [
   ['auto_reply', 'Respuesta automática', 'Cuando una regla de Inteligencia artificial encuentra pasos para probar: este texto va alrededor de los pasos ({{sugerencias}}). Usa el asunto de "Ticket recibido".', null],
   ['known_issue', 'Problema conocido', 'Cuando el ticket nuevo menciona un sistema crítico con un problema informado: va en lugar del "recibido" y de la respuesta automática.', 'notify_contact_on_create'],
   ['resolved', 'Ticket resuelto', 'Cuando un agente pasa el ticket a un estado "Resuelto".', 'notify_contact_on_resolve'],
+  ['project_digest', 'Resumen diario de un proyecto', 'Una vez por día, al contacto del área solicitante de cada proyecto, con las tareas que se finalizaron ({{tareas}}). Se activa en cada proyecto.', null],
 ];
 // Formato simple de los correos (igual que lib/mail-templates.js): **negrita**, _cursiva_, [color]…[/color], [resaltado]…[/resaltado]
 const MAIL_COLORS = { rojo: '#c8102e', verde: '#059669', azul: '#2563eb', naranja: '#d97706', gris: '#6b7280' };
@@ -988,19 +989,20 @@ function mailPreview(key, tpl, all, sample) {
     'contacto.nombre': sample.first, 'contacto.nombre_completo': sample.name, 'contacto.area': 'Sistemas', 'ticket.numero': '1234',
     'ticket.asunto': key === 'known_issue' ? 'No puedo entrar al CRM' : 'No imprime la impresora del 3er piso', empresa: state.meta.brand?.name || '', mesa: state.meta.brand?.product || 'Mesa de Ayuda',
     'sistema.nombre': 'CRM comercial', 'sistema.estado': 'caído', 'sistema.mensaje': 'No se puede ingresar. Estamos trabajando con el proveedor.', 'sistema.resolucion': 'hoy 14:30 hs',
+    'proyecto.nombre': 'Cotizador de transporte V2', 'proyecto.avance': '40 %',
   };
   const fill = (t, esc) => String(t || '').replace(/\{\{\s*([a-z_.]+)\s*\}\}/gi, (m, k) => (Object.hasOwn(vals, k) ? (esc ? mailEscape(vals[k]) : vals[k]) : m));
   const brandColor = /^#[0-9a-f]{3,8}$/i.test(state.meta.brand?.color || '') ? state.meta.brand.color : '#C8102E';
   const tidy = (x) => x.replace(/\s+,/g, ',').replace(/ {2,}/g, ' ');
-  const steps = '<ol><li>Verifique que la impresora esté encendida y con papel.</li><li>Apáguela, espere 30 segundos y vuelva a encenderla.</li></ol>';
-  const body = String(tpl.body || '').replace(/\r\n/g, '\n').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => (/^\{\{\s*sugerencias\s*\}\}$/i.test(p) ? steps
+  const steps = key === 'project_digest' ? '<ul><li>Relevamiento con el área comercial (10/11)</li><li>Prototipo de la pantalla de cotización (12/11)</li></ul>' : '<ol><li>Verifique que la impresora esté encendida y con papel.</li><li>Apáguela, espere 30 segundos y vuelva a encenderla.</li></ol>';
+  const body = String(tpl.body || '').replace(/\r\n/g, '\n').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => (/^\{\{\s*(sugerencias|tareas)\s*\}\}$/i.test(p) ? steps
     : `<p>${tidy(fill(mailFormat(mailEscape(p), brandColor), true)).replace(/\n/g, '<br>').replace(/\{\{\s*sugerencias\s*\}\}/gi, steps)}</p>`))
-    .filter((x) => x.replace(/<[^>]+>/g, '').trim() || x.includes('<ol>')).join('');
+    .filter((x) => x.replace(/<[^>]+>/g, '').trim() || x.includes('<ol>') || x.includes('<ul>')).join('');
   let subject = tidy(fill(mailStrip(key === 'auto_reply' ? all.created.subject : tpl.subject), false)).replace(/\s+/g, ' ').trim();
-  if (!subject.includes('[#1234]')) subject = `[#1234] ${subject}`;
+  if (key !== 'project_digest' && !subject.includes('[#1234]')) subject = `[#1234] ${subject}`;
   return `<div class="mail-prev-subj"><small>Asunto</small><b>${mailEscape(subject)}</b></div>
     <div class="mail-prev-body" style="--brand:${mailEscape(state.meta.brand?.color || '#C8102E')}">${body}
-      <p><span class="mail-prev-btn">${mailEscape(all.button || 'Ver el ticket')}</span></p>${all.footer ? `<p class="mail-prev-foot">${mailEscape(all.footer)}</p>` : ''}</div>`;
+      ${key === 'project_digest' ? '' : `<p><span class="mail-prev-btn">${mailEscape(all.button || 'Ver el ticket')}</span></p>${all.footer ? `<p class="mail-prev-foot">${mailEscape(all.footer)}</p>` : ''}`}</div>`;
 }
 
 async function mailTemplatesSettings(body) {
@@ -1008,7 +1010,8 @@ async function mailTemplatesSettings(body) {
   const cur = JSON.parse(JSON.stringify(data.templates));
   const first = (state.me.name || '').split(' ')[0];
   const sample = { first, name: state.me.name || '' };
-  const varsHtml = (key) => Object.entries(data.vars).filter(([k]) => (k !== 'sugerencias' || key === 'auto_reply') && (!k.startsWith('sistema.') || key === 'known_issue'))
+  const varsHtml = (key) => Object.entries(data.vars).filter(([k]) => (k !== 'sugerencias' || key === 'auto_reply') && (!k.startsWith('sistema.') || key === 'known_issue')
+    && ((k !== 'tareas' && !k.startsWith('proyecto.')) || key === 'project_digest') && (!k.startsWith('ticket.') || key !== 'project_digest'))
     .map(([k, d]) => `<button type="button" class="chip mail-var" data-var="${k}" title="${esc(d)}">{{${k}}}</button>`).join('');
   body.innerHTML = `<div class="card">
       <h3>${icon('mail', 16)} Correos a los usuarios</h3>
@@ -1017,7 +1020,7 @@ async function mailTemplatesSettings(body) {
     </div>
     ${MAIL_CARDS.map(([key, title, when, flag]) => `<section class="card mail-card" data-key="${key}">
       <div class="sec-head"><div><h3>${esc(title)}</h3><p class="hint" style="margin:2px 0 0">${esc(when)}</p></div>
-        ${flag ? `<label class="check"><input type="checkbox" data-flag="${flag}" ${hd[flag] !== false ? 'checked' : ''}> Enviar</label>` : `<a class="link-btn" href="#/settings/ai">Prender o apagar →</a>`}</div>
+        ${key === 'project_digest' ? '<span class="muted small">Se prende en cada proyecto</span>' : flag ? `<label class="check"><input type="checkbox" data-flag="${flag}" ${hd[flag] !== false ? 'checked' : ''}> Enviar</label>` : `<a class="link-btn" href="#/settings/ai">Prender o apagar →</a>`}</div>
       <div class="mail-grid">
         <div class="mail-edit">
           ${key === 'auto_reply' ? '' : `<label class="field"><span>Asunto</span><input class="input" name="subject" maxlength="200" value="${esc(cur[key].subject || '')}"></label>`}

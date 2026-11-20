@@ -216,7 +216,32 @@ export function portfolioFieldsHtml(p = {}, { required = false, derived = false 
     <label class="field"><span>Fecha de inicio</span><input class="input" type="date" name="start_date" value="${d(p.start_date)}" ${derived ? 'readonly tabindex="-1"' : ''}>${derived ? '<small class="hint">Primer inicio de las tareas</small>' : ''}</label>
     <label class="field"><span>Fecha de fin</span><input class="input" type="date" name="end_date" value="${d(p.end_date)}" ${derived ? 'readonly tabindex="-1"' : ''}>${derived ? '<small class="hint">Último fin de las tareas</small>' : ''}</label>
     <label class="check" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="recurring" ${p.recurring ? 'checked' : ''}> Recurrente (sin fin)</label>
+  </div>
+  <div class="grid2 pf-contact">
+    <label class="field"><span>Contacto del área solicitante <small class="muted">— recibe un resumen diario con las tareas finalizadas</small></span>
+      <input class="input" type="email" name="contact_email" list="pfContacts" autocomplete="off" placeholder="nombre@hanseatica.com" value="${esc(p.contact_email || '')}" data-orig="${esc(p.contact_email || '')}">
+      <datalist id="pfContacts"></datalist></label>
+    <label class="check" style="align-self:end;margin-bottom:12px"><input type="checkbox" name="contact_digest" ${p.notify_contact === false ? '' : 'checked'}> Mandarle el resumen diario</label>
   </div>`;
+}
+
+/** Sugerencias de contactos mientras se escribe el correo (v1.27). */
+export function wireContactSuggest(root) {
+  const input = root.querySelector('[name=contact_email]');
+  if (!input) return;
+  let timer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const t = input.value.trim();
+    if (t.length < 2) return;
+    timer = setTimeout(async () => {
+      try {
+        const r = await api(`/contacts?q=${encodeURIComponent(t)}&limit=8`);
+        const list = r.items || r;
+        root.querySelector('#pfContacts').innerHTML = (list || []).filter((c) => c.email).map((c) => `<option value="${esc(c.email)}">${esc(c.name || c.email)}</option>`).join('');
+      } catch { /* sin sugerencias */ }
+    }, 250);
+  });
 }
 
 export function readPortfolioFields(root) {
@@ -226,6 +251,9 @@ export function readPortfolioFields(root) {
     origin_id: n(g('origin_id').value), sector_id: n(g('sector_id').value), area_id: n(g('area_id').value), priority: Number(g('priority').value),
     portfolio_status: g('portfolio_status').value, estimated_hours: n(g('estimated_hours').value),
     start_date: g('start_date').value || null, end_date: g('end_date').value || null, recurring: g('recurring').checked,
+    // El contacto solo se manda si cambió (así una pantalla que no lo conoce no lo borra)
+    ...(g('contact_email') && g('contact_email').value.trim() !== (g('contact_email').dataset.orig || '') ? { contact_email: g('contact_email').value.trim() || null } : {}),
+    ...(g('contact_digest') ? { contact_digest: g('contact_digest').checked } : {}),
   };
 }
 
@@ -260,7 +288,7 @@ export function openProjectForm({ ticket = null, ruleText = '', canConfigure = f
         <div class="phase-editor"></div>
         <button type="button" class="btn sm" data-addphase>${icon('plus', 13)} Agregar tarea</button>
       </div>
-      <details class="pf-more" ${state.meta.canPortfolio || ticket ? 'open' : ''}><summary>Datos para el portfolio${ticket ? ' <small class="muted">(origen y sector IT obligatorios)</small>' : ''}</summary>${portfolioFieldsHtml({ area_id: ticket?.category_id || null, priority: ticket ? Math.max(2, Number(ticket.priority) || 2) : 2 }, { required: Boolean(ticket), derived: Boolean(ticket) })}</details>
+      <details class="pf-more" ${state.meta.canPortfolio || ticket ? 'open' : ''}><summary>Datos para el portfolio${ticket ? ' <small class="muted">(origen y sector IT obligatorios)</small>' : ''}</summary>${portfolioFieldsHtml({ contact_email: ticket?.contact_email || '', area_id: ticket?.category_id || null, priority: ticket ? Math.max(2, Number(ticket.priority) || 2) : 2 }, { required: Boolean(ticket), derived: Boolean(ticket) })}</details>
       <label class="field"><span>Equipo <small class="muted">— el responsable se suma solo</small></span><select class="input" name="members" multiple size="4">${options(users, [ticket?.assignee_id].filter(Boolean))}</select></label>
       ${ticket ? `<div class="grid2">
         <div class="rule-info">${icon('zap', 15)}<span>Según las reglas de negocio, el ticket ${ruleText}.${canConfigure ? ' <a href="#/settings/dev" data-close>Configurar reglas</a>' : ''}</span></div>
@@ -268,6 +296,7 @@ export function openProjectForm({ ticket = null, ruleText = '', canConfigure = f
       </div>` : ''}`,
       footer: `<button class="btn" data-close>Cancelar</button><button class="btn primary" data-ok>${ticket ? 'Crear proyecto' : 'Crear'}</button>`,
     });
+    wireContactSuggest(md.el);
     const f = (n) => md.el.querySelector(`[name=${n}]`);
     const conversion = Boolean(ticket);
     const pfRange = () => ({ start: f('start_date')?.value || null, end: f('end_date')?.value || null });

@@ -95,6 +95,21 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Exportar la lista de proyectos a Excel o PDF (v1.28.0)**
+- En Proyectos hay dos botones nuevos, **Excel** y **PDF**, que exportan **lo que se está viendo**: los proyectos filtrados, en el orden de la pantalla, con las **columnas elegidas** para la Lista (y la clave de cada proyecto adelante).
+- **Excel**: un .xlsx con encabezado fijo y autofiltro; las fechas salen como fechas, el avance como porcentaje y las horas como números. Las horas estimadas solo salen para quien gestiona el portfolio o es supervisor (igual que en pantalla).
+- **PDF**: abre una versión para imprimir (A4 horizontal) con el título, la fecha, la cantidad de proyectos y los filtros aplicados; se guarda eligiendo "Guardar como PDF" en la ventana de impresión.
+- Sin migración.
+
+**Contacto del área y resumen diario de los proyectos (v1.27.0)**
+- Cada proyecto puede tener un **contacto del área solicitante** (en los datos del portfolio: al crearlo, al convertir un ticket o en Configuración del proyecto). Se escribe su correo y sugiere los contactos que ya tiene la mesa; si no existe, se da de alta. Al **convertir un ticket**, el contacto es, de entrada, quien pidió el ticket.
+- Ese contacto recibe **un solo correo por día** con las tareas del proyecto que se **finalizaron** desde el resumen anterior y el avance del proyecto. Cada tarea se avisa **una sola vez** (si se reabre y se vuelve a finalizar, no se repite). Las subtareas no se avisan. Al cambiar el contacto, lo ya finalizado no se le manda al nuevo.
+- Se puede apagar por proyecto (casilla "Mandarle el resumen diario") y, desde la configuración del proyecto, **mandar ahora** lo pendiente.
+- El texto se edita en Configuración → Correos a los usuarios → **Resumen diario de un proyecto** (variables {{proyecto.nombre}}, {{proyecto.avance}} y {{tareas}}), con prueba.
+- En el historial de cada tarea figura a quién se avisó. En la lista de proyectos se puede agregar la columna **Contacto del área**.
+- Sale en la tarea diaria (`/api/cron/daily`, 11:00 UTC = 8:00 hs).
+- **Migración 28**: `projects.contact_id`, `projects.notify_contact` e `issues.done_notified_at` (las tareas ya finalizadas quedan como avisadas).
+
 **Columnas de la lista de proyectos (v1.26.0)**
 - En Proyectos, vista **Lista**, hay un botón **Columnas** (igual al de la lista de tickets): se eligen las columnas que se ven y su orden (arrastrando o con las flechas), y se ajusta el ancho arrastrando el borde del título (doble clic la ajusta al contenido). **Proyecto** queda siempre visible. **Restablecer** vuelve a lo de fábrica.
 - Columnas nuevas para elegir: **Origen, Sector IT, Área solicitante, Inicio, Salud, Horas estimadas, Horas registradas, Etapa o tarea actual, Integrantes, Tareas, Sprint activo y Creado**. Las fechas de inicio y fin son las reales del proyecto (las mismas del Portfolio).

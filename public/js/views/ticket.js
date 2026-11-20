@@ -667,7 +667,7 @@ export async function render(el, [num]) {
     const convertStatus = rules.on_convert_status_id ? statusById(rules.on_convert_status_id)?.name : null;
     const ruleText = convertStatus ? `pasa a <b>${esc(convertStatus)}</b>` : `mantiene su estado actual (<b>${esc(statusById(t.status_id)?.name || '—')}</b>)`;
     const { openProjectForm } = await import('./project-form.js');
-    const r = await openProjectForm({ ticket: t, ruleText, canConfigure: isAdmin() });
+    const r = await openProjectForm({ ticket: { ...t, contact_email: d.contact?.email || '' }, ruleText, canConfigure: isAdmin() });
     if (!r) return;
     await refreshMeta();
     d = r.detail;
