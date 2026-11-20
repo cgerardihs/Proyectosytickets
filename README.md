@@ -95,6 +95,12 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Columnas de la lista de proyectos (v1.26.0)**
+- En Proyectos, vista **Lista**, hay un botón **Columnas** (igual al de la lista de tickets): se eligen las columnas que se ven y su orden (arrastrando o con las flechas), y se ajusta el ancho arrastrando el borde del título (doble clic la ajusta al contenido). **Proyecto** queda siempre visible. **Restablecer** vuelve a lo de fábrica.
+- Columnas nuevas para elegir: **Origen, Sector IT, Área solicitante, Inicio, Salud, Horas estimadas, Horas registradas, Etapa o tarea actual, Integrantes, Tareas, Sprint activo y Creado**. Las fechas de inicio y fin son las reales del proyecto (las mismas del Portfolio).
+- Se guarda por agente, en la base (te sigue en otra computadora), aparte de las columnas de la lista de tickets.
+- Sin migración.
+
 **Comparativa de tickets (v1.25.0)** — Informes → Comparativa
 - Pestaña nueva para ver cómo evolucionan los tickets: agrupados por **mes, trimestre o año**, en los últimos 12 meses, un año en particular o desde el comienzo, y con la opción de **comparar con el año anterior**.
 - Arriba: **ingresados**, **cerrados** (resueltos o cerrados en el período), la **diferencia** entre los dos, los **abiertos al cierre** del período y el **tiempo de resolución** promedio en horas laborales, con su variación contra el período anterior (o el año anterior).

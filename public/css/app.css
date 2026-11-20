@@ -1696,3 +1696,10 @@ body.tk-resizing, body.tk-resizing * { cursor: col-resize !important; user-selec
 .cmp-spark { vertical-align: middle; } .cmp-spark polyline { fill: none; stroke: #2563eb; stroke-width: 1.5; }
 .cmp-var { font-size: 12px; font-weight: 600; color: var(--muted); } .cmp-var.good { color: var(--ok); } .cmp-var.bad { color: var(--danger, #dc2626); }
 .cmp-bar .input { width: auto; max-width: 220px; }
+
+/* ---------- v1.26: columnas de la lista de proyectos (reusa el panel tkc- y el ajuste tk-) ---------- */
+.prj-tbl th[data-col] { position: relative; }
+.prj-tbl th:hover .tk-rz::after { background: var(--brand); width: 2px; top: 12%; bottom: 12%; }
+.prj-tbl.tk-fixed { table-layout: fixed; }
+.prj-tbl.tk-fixed th, .prj-tbl.tk-fixed td { overflow: hidden; text-overflow: ellipsis; }
+.prj-health { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 6px; vertical-align: 1px; }
