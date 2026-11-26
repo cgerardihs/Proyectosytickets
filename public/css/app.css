@@ -1703,3 +1703,8 @@ body.tk-resizing, body.tk-resizing * { cursor: col-resize !important; user-selec
 .prj-tbl.tk-fixed { table-layout: fixed; }
 .prj-tbl.tk-fixed th, .prj-tbl.tk-fixed td { overflow: hidden; text-overflow: ellipsis; }
 .prj-health { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 6px; vertical-align: 1px; }
+
+/* v1.29: ticket que entró a Spam por remitente no permitido */
+.tk-notallowed { border-color: #fde68a; background: #fffbeb; padding: 12px 14px; margin-bottom: 12px; }
+.tk-notallowed b { display: inline-flex; gap: 6px; align-items: center; color: #92400e; }
+.tk-notallowed p { margin: 6px 0 8px; }

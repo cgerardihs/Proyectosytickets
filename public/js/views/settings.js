@@ -111,8 +111,9 @@ async function general(body) {
     <h3>${icon('shield', 16)} Dominios de confianza</h3>
     <p class="hint" style="margin-top:-6px">Si cargás dominios, solo los correos de esos dominios (y sus subdominios) pueden abrir tickets desde el portal, pedir el enlace de acceso y recibir las sugerencias de la IA. Los tickets que lleguen por correo desde otros dominios se crean igual, pero no se les manda la respuesta automática ni el aviso de alta: así nadie puede usar la mesa para enviar spam en nombre de la empresa. Los agentes pueden responderles normalmente. Sin dominios, el portal queda abierto a cualquier correo.</p>
     <div class="grid2">
-      <label class="field"><span>Dominios (uno por línea)</span><textarea class="input" name="trusted_domains" rows="4" placeholder="hanseatica.com&#10;otra-empresa.com.ar">${esc((hd.portal_trusted_domains || []).join('\n'))}</textarea></label>
+      <label class="field"><span>Dominios o direcciones (uno por línea)</span><textarea class="input" name="trusted_domains" rows="6" placeholder="hanseatica.com&#10;otra-empresa.com.ar&#10;soporte@proveedor.com">${esc((hd.portal_trusted_domains || []).join('\n'))}</textarea></label>
       <div>
+        <label class="check"><input type="checkbox" name="inbound_allowlist_only" ${hd.inbound_allowlist_only ? 'checked' : ''}> <span><b>Solo estos dominios y direcciones crean tickets por correo</b><br><small class="muted">Los correos nuevos de cualquier otro remitente entran directo a <b>Spam</b> (sin respuesta automática ni avisos). Se revisan en la vista Spam y, desde el ticket, se permite el dominio o la dirección con un clic. Las respuestas a tickets que ya existen entran siempre.</small></span></label>
         <label class="check"><input type="checkbox" name="allow_directory" ${hd.portal_allow_directory_contacts !== false ? 'checked' : ''}> Aceptar también a los contactos del directorio de Microsoft 365 aunque tengan otro dominio</label>
         <label class="field" style="margin-top:10px"><span>Tope diario de consultas de IA desde el portal (0 = sin tope)</span><input class="input" type="number" min="0" name="portal_ai_daily_limit" value="${hd.portal_ai_daily_limit ?? 150}"></label>
         <p class="hint">Separado del tope mensual: si alguien abusa del portal, se corta ahí y los agentes siguen teniendo el copiloto.</p>
@@ -169,12 +170,14 @@ async function general(body) {
         await refreshMeta();
       }
       if (f.dataset.form === 'trust') {
-        const domains = [...new Set(f.trusted_domains.value.split(/[\s,;]+/).map((x) => x.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^.*@/, '').replace(/\/.*$/, '').replace(/^www\./, '')).filter(Boolean))];
-        const badOne = domains.find((d) => !/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(d));
-        if (badOne) return toast(`"${badOne}" no es un dominio válido (ej. hanseatica.com)`, 'error');
+        // v1.29: dominios ("@hanseatica.com" o "hanseatica.com") o direcciones puntuales ("soporte@proveedor.com")
+        const domains = [...new Set(f.trusted_domains.value.split(/[\s,;]+/).map((x) => x.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^@/, '').replace(/\/.*$/, '').replace(/^www\./, '')).filter(Boolean))];
+        const badOne = domains.find((d) => !/^(?:[a-z0-9._%+-]+@)?([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(d));
+        if (badOne) return toast(`"${badOne}" no es un dominio ni un correo válido (ej. hanseatica.com o soporte@proveedor.com)`, 'error');
+        if (f.inbound_allowlist_only.checked && !domains.length) return toast('Para limitar los tickets por correo cargá al menos un dominio', 'error');
         await api('/admin/settings/helpdesk', {
           method: 'PUT',
-          body: { portal_trusted_domains: domains, portal_allow_directory_contacts: f.allow_directory.checked, portal_ai_daily_limit: f.portal_ai_daily_limit.value === '' ? 150 : Math.max(0, Number(f.portal_ai_daily_limit.value) || 0) },
+          body: { portal_trusted_domains: domains, inbound_allowlist_only: f.inbound_allowlist_only.checked, portal_allow_directory_contacts: f.allow_directory.checked, portal_ai_daily_limit: f.portal_ai_daily_limit.value === '' ? 150 : Math.max(0, Number(f.portal_ai_daily_limit.value) || 0) },
         });
         await refreshMeta();
         toast('Guardado');

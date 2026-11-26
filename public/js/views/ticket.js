@@ -13,7 +13,7 @@ const TASK_STATE_TEXT = { standby: 'Standby', in_progress: 'En curso', test: 'Te
 const ACTION_TEXT = {
   created: 'creó el ticket', replied: 'respondió al contacto', note: 'agregó una nota privada', note_edited: 'editó una nota privada', forwarded: 'reenvió el ticket',
   reopened: 'reabrió el ticket', spam: 'lo marcó como spam', notspam: 'lo quitó de spam', trashed: 'lo envió a la papelera', restored: 'lo restauró',
-  merged: 'lo combinó en otro ticket', merged_from: 'combinó otro ticket en este', time: 'registró tiempo', issue_linked: 'lo vinculó a una tarea de proyecto', project_linked: 'lo vinculó a un proyecto de desarrollo', project_unlinked: 'lo desvinculó de un proyecto', dev_rule: 'Regla de proyecto de desarrollo',
+  merged: 'lo combinó en otro ticket', merged_from: 'combinó otro ticket en este', sender_not_allowed: 'lo mandó a Spam: el remitente no está en los dominios permitidos', sender_allowed: 'permitió al remitente', time: 'registró tiempo', issue_linked: 'lo vinculó a una tarea de proyecto', project_linked: 'lo vinculó a un proyecto de desarrollo', project_unlinked: 'lo desvinculó de un proyecto', dev_rule: 'Regla de proyecto de desarrollo',
   resolved_by_contact: 'El contacto lo marcó como resuelto', auto_closed: 'Se cerró automáticamente',
   ai_auto_reply: 'Se envió la respuesta automática', ai_feedback: 'El usuario respondió a la respuesta automática', ai_classified: 'La IA clasificó el ticket al crearlo',
   intune_action: 'envió una acción remota al equipo',
@@ -198,6 +198,11 @@ export async function render(el, [num]) {
         </div>
         <div class="card">
           <h3>${icon('user', 15)} Contacto</h3>
+          ${t.spam && (d.activities || []).some((a) => a.action === 'sender_not_allowed') ? `<div class="card tk-notallowed">
+            <b>${icon('shield', 14)} Remitente no permitido</b>
+            <p class="small">Este correo entró a Spam porque <b>${esc(d.contact?.email || '')}</b> no está en los dominios permitidos (Configuración → Portal).</p>
+            ${isManager() ? `<div class="row gap wrap"><button class="btn sm" data-allow="domain">Permitir @${esc(String(d.contact?.email || '').split('@').pop())}</button><button class="btn sm" data-allow="email">Permitir solo esta dirección</button></div>` : '<p class="small muted">Un supervisor o administrador puede permitirlo.</p>'}
+          </div>` : ''}
           ${d.contact ? `
             <div class="contact-card">
               <a href="#/contacts/${d.contact.id}"><b>${esc(d.contact.name)}</b></a>
@@ -475,6 +480,15 @@ export async function render(el, [num]) {
   }
 
   el.addEventListener('click', async (e) => {
+    const allow = e.target.closest('[data-allow]');
+    if (allow) {
+      try {
+        const r = await api(`/tickets/${num}/allow-sender`, { method: 'POST', body: { scope: allow.dataset.allow } });
+        toast(`Listo: ${r.entry} ya puede crear tickets. Este ticket salió de Spam.`);
+        await refreshMeta();
+        return load();
+      } catch (er) { return toastError(er); }
+    }
     const pic = e.target.closest('.msg-html img[src^="/api/attachments/"]');
     if (pic) return window.open(pic.getAttribute('src'), '_blank', 'noopener');
     const editBtn = e.target.closest('[data-edit-note]');

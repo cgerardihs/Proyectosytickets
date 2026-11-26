@@ -95,6 +95,13 @@ Sistema de tickets al estilo Desk365 con gestión de proyectos tipo Jira. Vanill
 - **Nombres de los campos editables por el superadmin**: lápiz en cada título de Configuración → Campos del ticket (Estado, Área solicitante, Tipo de ticket, Categoría técnica, Subcategoría técnica) y una tarjeta para los demás (Prioridad, Asignado a, Contacto, Canal, SLA). Se usan en la lista, el detalle, el alta, los filtros, el inicio y los informes.
 - **Lista de tickets**: cada columna se ordena tocando su encabezado (▲ ascendente / ▼ descendente). La categoría técnica y el área se cambian directo desde la lista, como la prioridad, el estado y el asignado, y también en las acciones masivas.
 
+**Solo los dominios permitidos crean tickets por correo (v1.29.0)**
+- En Configuración → Portal → Dominios de confianza, la lista acepta **dominios** (`hanseatica.com` o `@hanseatica.com`, con sus subdominios) y también **direcciones puntuales** (`soporte@proveedor.com`), para dejar pasar a alguien externo sin abrir todo su dominio.
+- Casilla nueva **"Solo estos dominios y direcciones crean tickets por correo"**: los correos **nuevos** de cualquier otro remitente entran directo a **Spam**, sin responsable, sin respuesta automática, sin avisos a los agentes y sin pasar por la IA. No se pierde nada: se revisan en la vista Spam.
+- En un ticket que entró a Spam por eso, un aviso **"Remitente no permitido"** con dos botones (supervisores y administradores): **Permitir el dominio** o **Permitir solo esta dirección**. Lo agrega a la lista y saca el ticket de Spam; queda en el historial y en la auditoría.
+- Las **respuestas a tickets que ya existen** entran siempre, y los tickets que crea un agente a mano no se ven afectados. Las personas del directorio de Microsoft 365 siguen contando como permitidas (si esa opción está tildada).
+- Con la casilla apagada, todo sigue como antes. Sin migración.
+
 **Exportar la lista de proyectos a Excel o PDF (v1.28.0)**
 - En Proyectos hay dos botones nuevos, **Excel** y **PDF**, que exportan **lo que se está viendo**: los proyectos filtrados, en el orden de la pantalla, con las **columnas elegidas** para la Lista (y la clave de cada proyecto adelante).
 - **Excel**: un .xlsx con encabezado fijo y autofiltro; las fechas salen como fechas, el avance como porcentaje y las horas como números. Las horas estimadas solo salen para quien gestiona el portfolio o es supervisor (igual que en pantalla).
